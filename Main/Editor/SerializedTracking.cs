@@ -1,5 +1,5 @@
 // Derived from BetterEditor (https://github.com/jackfranzen/BetterEditor)
-
+//  (See BetterEditor/LICENSE.txt for details)
 
 using System;
 using System.Collections.Generic;
@@ -39,14 +39,14 @@ namespace BetterEditor
         {
             if (tracker.HasPropName() == false)
                 throw new Exception("Cannot track, no property name given");
-            var sProp = sObject.FindProperty(tracker.GetPropName());
-            if(sProp == null)
-                throw new Exception($"Property {tracker.GetPropName()} not found in object {sObject.targetObject.name}");
+            var sProp = sObject.FindPropertyChecked(tracker.GetPropName());
             tracker.Track(sProp);
         }
         
         public static void TrackRelative(this ISerializedTracker tracker, SerializedProperty parentProperty, in string nameIn)
         {
+            if (parentProperty == null)
+                throw new Exception("Cannot TrackRelative, parent property is null");
             tracker.SetPropName(nameIn);
             tracker.TrackRelative(parentProperty);
         }
@@ -55,6 +55,8 @@ namespace BetterEditor
         {
             if (tracker.HasPropName() == false)
                 throw new Exception("Cannot track, no property name given");
+            if (parentProperty == null)
+                throw new Exception("Cannot TrackRelative, parent property is null");
             var sProp = parentProperty.FindPropertyRelative(tracker.GetPropName());
             if(sProp == null)
                 throw new Exception($"Property {tracker.GetPropName()} not found relative to {parentProperty.name}");
@@ -181,132 +183,6 @@ namespace BetterEditor
             return wasUpdated;
         }
     }
-    
-    
-    public class TrackerCollection
-    {
-        private SerializedProperty prop;
-        private System.Type targetClass;
-        private List<ISerializedTracker> trackers = new List<ISerializedTracker>();
-        public SerializedProperty Prop => prop;
-        public System.Type TargetClass => targetClass;
-        public List<ISerializedTracker> Trackers => trackers;
-        
-        public TrackerCollection(System.Type targetClass)
-        {
-            this.targetClass = targetClass;
-        }
-        
-        public void Add(ISerializedTracker tracker)
-        {
-            if(!tracker.HasPropName())
-                throw new Exception("Cannot add tracker without property name");
-            trackers.Add(tracker);
-        }
-        public void AddRange(IEnumerable<ISerializedTracker> trackersIn)
-        {
-            foreach (var tracker in trackersIn)
-                if(!tracker.HasPropName())
-                    throw new Exception("Cannot add tracker without property name");
-            trackers.AddRange(trackersIn);
-        }
 
-        public void PopulateWithReflectionIfEmpty(object obj)
-        {
-            if (trackers.Count == 0)
-                PopulateWithReflection(obj);
-        }
-        
-        // -- Builds the tracker list from object reflection
-        public void PopulateWithReflection(object obj)
-        {
-            var fields = obj.GetType().GetFields();
-            foreach (var field in fields)
-            {
-                if (field.FieldType != typeof(SerializedTracker))
-                    continue;
-                var tracker = (SerializedTracker)field.GetValue(obj);
-                Add(tracker);
-            }
-            
-            if(fields.Length == 0)
-                throw new Exception($"TrackerCollection.PopulateWithReflection() found no fields in {obj.GetType().Name}");
-        }        
-        
-        
-        // -- Helper Method to track from a serialized object and a property name
-        public void TrackFrom(SerializedObject sObject, in string nameIn)
-        {
-            var foundProp = sObject.FindProperty(nameIn);
-            if (foundProp == null)
-                throw new Exception($"Property {nameIn} not found in object {sObject.targetObject.name}");
-            TrackFrom(foundProp);
-        }
 
-        
-        // -- Set the primary property for this collection and track from it
-        //         (each tracker gets a serialized property relative to the provided prop)
-        //         (trackers must be initialized with a property name)
-        public void TrackFrom(SerializedProperty sProp)
-        {
-            if (sProp == null)
-                throw new Exception("Cannot set primary property to null");
-            sProp.CheckType(targetClass);
-            ExceptionOnNoTrackers();
-            prop = sProp;
-            foreach (var tracker in trackers)
-                tracker.TrackRelative(prop);
-        }
-        
-        // -- Check if any tracker in the collection 
-        public bool AnyWasUpdated(SerializedTrackerLogging log = SerializedTrackerLogging.None)
-        {
-            ExceptionOnNoTrackers();
-            
-            var wasUpdated = false;
-            foreach (var tracker in trackers)
-                if (tracker.WasUpdated(log))
-                {
-                    // -- Break immediately if not logging
-                    if(log == SerializedTrackerLogging.None)
-                        return true;
-                    // -- Otherwise, return at the end. 
-                    wasUpdated |= true;
-                }
-            return wasUpdated;
-        }
-        
-        // -- Throws if no trackers
-        private void ExceptionOnNoTrackers()
-        {
-            if(trackers.Count == 0)
-                throw new System.Exception("Trackers not initialized. Populate the trackers array first using any of the methods");
-        }
-        
-
-        // -- Helper method which throws if primary property is not set
-        public void CheckProperty()
-        {
-            if (prop == null)
-                throw new Exception("Primary property not set, call TrackFrom() first");
-        }
-        
-        // -- Helper method to check property and populate with reflection if empty, 
-        public void CheckAndPopulate(object obj)
-        {
-            CheckProperty();
-            PopulateWithReflectionIfEmpty(obj);
-        }
-    }
-    
-    public interface IHasTrackerCollection
-    {
-        TrackerCollection GetCollection();
-    }
-    
-    public interface ICollectionEditor : IHasTrackerCollection
-    {
-        void DrawUI();
-        void DrawUIInner();
-    }
 }

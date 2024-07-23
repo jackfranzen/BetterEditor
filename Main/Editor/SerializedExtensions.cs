@@ -1,4 +1,5 @@
 // Derived from BetterEditor (https://github.com/jackfranzen/BetterEditor)
+//  (See BetterEditor/LICENSE.txt for details)
 
 using System;
 using UnityEditor;
@@ -8,6 +9,29 @@ namespace BetterEditor
 {
     public static class SerializedExtensionMethods
     {
+        
+        public static SerializedProperty FindPropertyChecked(this SerializedObject sObject, string name)
+        {
+            var prop = sObject.FindProperty(name);
+            if (prop != null)
+                return prop;
+            
+            if(sObject.targetObject)
+                throw new ArgumentException($"Property {name} not found in {sObject.targetObject.GetType().Name}");
+            
+            throw new ArgumentException($"Property {name} not found in serialized object");
+            return null;
+        }
+        
+        public static SerializedProperty FindRelativeChecked(this SerializedProperty parent, string name)
+        {
+            var prop = parent.FindPropertyRelative(name);
+            if (prop != null)
+                return prop;
+            
+            throw new ArgumentException($"Property {name} not found in {parent.displayName}");
+            return null;
+        }
         
         // -- Enforce Min/Max/Clamp Methods 
         //       -  IMPORTANT: Like with any serializedProperty.value setter, this will cause a property
@@ -203,12 +227,12 @@ namespace BetterEditor
             return obj1.Equals(obj2);
         }
         
-        public static void CheckType(this SerializedProperty sProp, System.Type type)
+        public static void ThrowIfBadType(this SerializedProperty sProp, System.Type type)
         {
             // -- Check Type
             var isPrimaryPropertyOfTargetClassType = (sProp.type == type.Name);
             if (!isPrimaryPropertyOfTargetClassType)
-                throw new System.Exception($"Property {sProp.displayName} is not of type {type.Name} in serializedObject");
+                throw new System.Exception($"Property {sProp.displayName} is not of type {type.Name}");
         }
         
     }
