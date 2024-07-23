@@ -1,9 +1,6 @@
 ﻿using System;
-using System.Linq;
-using BetterEditorSerialzied;
 using UnityEngine;
 using UnityEditor;
-using Object = UnityEngine.Object;
 
 namespace BetterEditor
 {
@@ -12,6 +9,13 @@ namespace BetterEditor
     public static class BetterEditorGUI
     {
 
+        
+        public static bool DrawHeaderFoldout(SerializedProperty sProp, GUIContent headerContent)
+        {
+            if (sProp == null)
+                throw new System.Exception($"DrawHeaderFoldout() failed, SerializedProperty is null");
+            return EditorGUILayout.PropertyField(sProp, headerContent, false);
+        }
         
         public static GUIStyle MakeCustomBoxStyle(int width, int height, Color backgroundColor, Color borderColor, int borderWidth = 1)
         {

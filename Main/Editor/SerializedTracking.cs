@@ -1,11 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using BetterEditorSerialzied;
 using UnityEditor;
 using UnityEngine;
 
-namespace BetterEditorTrackers
+namespace BetterEditor
 {
     public enum SerializedTrackerLogging
     {
@@ -97,7 +96,7 @@ namespace BetterEditorTrackers
         
         public bool WasUpdated(SerializedTrackerLogging log = SerializedTrackerLogging.None)
         {
-            var wasUpdated = prop.WasUpdated(value, hasMixed);
+            var wasUpdated = SerializedExtensionMethods.WasUpdated(prop, value, hasMixed);
             if (log == SerializedTrackerLogging.None) 
                 return wasUpdated;
             

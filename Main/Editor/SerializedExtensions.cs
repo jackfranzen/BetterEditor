@@ -2,7 +2,7 @@ using System;
 using UnityEditor;
 using UnityEngine;
 
-namespace BetterEditorSerialzied
+namespace BetterEditor
 {
     public static class SerializedExtensionMethods
     {
@@ -98,7 +98,7 @@ namespace BetterEditorSerialzied
                 return true;
 
             var newValue = prop.GetPropertyObjectValue();
-            var isDifferent = CompareObjects(newValue, previousValue) == false;
+            var isDifferent = BetterCompareObjects(newValue, previousValue) == false;
             return isDifferent;
         }
 
@@ -177,7 +177,7 @@ namespace BetterEditorSerialzied
         }
         
         
-        public static bool CompareObjects(object obj1, object obj2)
+        private static bool BetterCompareObjects(object obj1, object obj2)
         {
             if (obj1 == null || obj2 == null)
                 return obj1 == obj2;
@@ -209,12 +209,5 @@ namespace BetterEditorSerialzied
                 throw new System.Exception($"Property {sProp.displayName} is not of type {type.Name} in serializedObject");
         }
         
-        
-        public static bool DrawHeaderFoldout(this SerializedProperty sProp, GUIContent headerContent)
-        {
-            if (sProp == null)
-                throw new System.Exception($"DrawHeaderFoldout() failed, SerializedProperty is null");
-            return EditorGUILayout.PropertyField(sProp, headerContent, false);
-        }
     }
 }
