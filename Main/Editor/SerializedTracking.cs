@@ -1,3 +1,6 @@
+// Derived from BetterEditor (https://github.com/jackfranzen/BetterEditor)
+
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -180,20 +183,38 @@ namespace BetterEditor
     }
     
     
-    public class BulkSerializedTracker
+    public class TrackerCollection
     {
-        private SerializedProperty property;
+        private SerializedProperty prop;
+        private System.Type targetClass;
         private List<ISerializedTracker> trackers = new List<ISerializedTracker>();
-        public SerializedProperty Property => property;
+        public SerializedProperty Prop => prop;
+        public System.Type TargetClass => targetClass;
         public List<ISerializedTracker> Trackers => trackers;
+        
+        public TrackerCollection(System.Type targetClass)
+        {
+            this.targetClass = targetClass;
+        }
         
         public void Add(ISerializedTracker tracker)
         {
+            if(!tracker.HasPropName())
+                throw new Exception("Cannot add tracker without property name");
             trackers.Add(tracker);
         }
         public void AddRange(IEnumerable<ISerializedTracker> trackersIn)
         {
+            foreach (var tracker in trackersIn)
+                if(!tracker.HasPropName())
+                    throw new Exception("Cannot add tracker without property name");
             trackers.AddRange(trackersIn);
+        }
+
+        public void PopulateWithReflectionIfEmpty(object obj)
+        {
+            if (trackers.Count == 0)
+                PopulateWithReflection(obj);
         }
         
         // -- Builds the tracker list from object reflection
@@ -202,17 +223,42 @@ namespace BetterEditor
             var fields = obj.GetType().GetFields();
             foreach (var field in fields)
             {
-                if (field.FieldType == typeof(SerializedTracker))
-                {
-                    var tracker = (SerializedTracker)field.GetValue(obj);
-                    Add(tracker);
-                }
+                if (field.FieldType != typeof(SerializedTracker))
+                    continue;
+                var tracker = (SerializedTracker)field.GetValue(obj);
+                Add(tracker);
             }
             
             if(fields.Length == 0)
-                Debug.LogWarning($"TrackerList.PopulateWithReflection() found no fields in {obj.GetType().Name}");
+                throw new Exception($"TrackerCollection.PopulateWithReflection() found no fields in {obj.GetType().Name}");
+        }        
+        
+        
+        // -- Helper Method to track from a serialized object and a property name
+        public void TrackFrom(SerializedObject sObject, in string nameIn)
+        {
+            var foundProp = sObject.FindProperty(nameIn);
+            if (foundProp == null)
+                throw new Exception($"Property {nameIn} not found in object {sObject.targetObject.name}");
+            TrackFrom(foundProp);
+        }
+
+        
+        // -- Set the primary property for this collection and track from it
+        //         (each tracker gets a serialized property relative to the provided prop)
+        //         (trackers must be initialized with a property name)
+        public void TrackFrom(SerializedProperty sProp)
+        {
+            if (sProp == null)
+                throw new Exception("Cannot set primary property to null");
+            sProp.CheckType(targetClass);
+            ExceptionOnNoTrackers();
+            prop = sProp;
+            foreach (var tracker in trackers)
+                tracker.TrackRelative(prop);
         }
         
+        // -- Check if any tracker in the collection 
         public bool AnyWasUpdated(SerializedTrackerLogging log = SerializedTrackerLogging.None)
         {
             ExceptionOnNoTrackers();
@@ -230,31 +276,37 @@ namespace BetterEditor
             return wasUpdated;
         }
         
+        // -- Throws if no trackers
         private void ExceptionOnNoTrackers()
         {
             if(trackers.Count == 0)
-                throw new System.Exception("Trackers not initialized. Call Start() first.");
+                throw new System.Exception("Trackers not initialized. Populate the trackers array first using any of the methods");
         }
         
-        public void SetPrimaryProperty(SerializedProperty sProp)
-        {
-            if (sProp == null)
-                throw new Exception("Cannot set primary property to null");
-            ExceptionOnNoTrackers();
-            property = sProp;
-            foreach (var tracker in trackers)
-                tracker.TrackRelative(property);
-        }
 
+        // -- Helper method which throws if primary property is not set
         public void CheckProperty()
         {
-            if (property == null)
-                throw new Exception("Primary property not set, call SetPrimaryProperty() first");
+            if (prop == null)
+                throw new Exception("Primary property not set, call TrackFrom() first");
+        }
+        
+        // -- Helper method to check property and populate with reflection if empty, 
+        public void CheckAndPopulate(object obj)
+        {
+            CheckProperty();
+            PopulateWithReflectionIfEmpty(obj);
         }
     }
     
-    public interface IHasBulkTracker
+    public interface IHasTrackerCollection
     {
-        BulkSerializedTracker GetTracker();
+        TrackerCollection GetCollection();
+    }
+    
+    public interface ICollectionEditor : IHasTrackerCollection
+    {
+        void DrawUI();
+        void DrawUIInner();
     }
 }

@@ -1,4 +1,6 @@
-﻿using System;
+﻿// Derived from BetterEditor (https://github.com/jackfranzen/BetterEditor)
+
+using System;
 using UnityEngine;
 using UnityEditor;
 
@@ -10,12 +12,29 @@ namespace BetterEditor
     {
 
         
-        public static bool DrawHeaderFoldout(SerializedProperty sProp, GUIContent headerContent)
+        public static bool PropertyFoldout(SerializedProperty sProp, GUIContent headerContent)
         {
             if (sProp == null)
                 throw new System.Exception($"DrawHeaderFoldout() failed, SerializedProperty is null");
             return EditorGUILayout.PropertyField(sProp, headerContent, false);
         }
+        
+        public delegate void DrawPropertyFoldoutInner();
+        public static bool PropertyFoldout(SerializedProperty sProp, GUIContent headerContent, DrawPropertyFoldoutInner drawInnerFunc)
+        {
+            if (sProp == null)
+                throw new System.Exception($"DrawHeaderFoldout() failed, SerializedProperty is null");
+            var expanded = EditorGUILayout.PropertyField(sProp, headerContent, false);
+            if (expanded)
+            {
+                EditorGUI.indentLevel += 1;
+                drawInnerFunc();
+                EditorGUI.indentLevel -= 1;
+            }
+            return expanded;
+        }
+        
+        
         
         public static GUIStyle MakeCustomBoxStyle(int width, int height, Color backgroundColor, Color borderColor, int borderWidth = 1)
         {
@@ -31,7 +50,6 @@ namespace BetterEditor
             {
                 for (int y = 0; y < height; y++)
                 {
-                    // Apply border color at the edges
                     if (x < borderWidth || y < borderWidth || x >= width - borderWidth || y >= height - borderWidth)
                         texture.SetPixel(x, y, borderColor);
                     else
@@ -93,21 +111,21 @@ namespace BetterEditor
             foldoutProp = EditorGUILayout.Foldout(foldoutProp, content, true, style ?? EditorStyles.foldout);
         }
         
-        public delegate void DrawHeaderFoldoutWrappedFunction();
+        public delegate void DrawFoldoutInner();
         
-        public static void FoldoutWrapped(ref bool foldoutProp, in GUIContent content, DrawHeaderFoldoutWrappedFunction drawFunc, GUIStyle style = null)
+        public static void FoldoutWrapped(ref bool foldoutProp, in GUIContent content, DrawFoldoutInner drawFunc, GUIStyle style = null)
         {
             Foldout(ref foldoutProp, content, style);
             FoldoutWrappedInner(foldoutProp, drawFunc, 2);
         }
         
-        public static void FoldoutWrapped(ref bool foldoutProp, in string content, DrawHeaderFoldoutWrappedFunction drawFunc, GUIStyle style = null)
+        public static void FoldoutWrapped(ref bool foldoutProp, in string content, DrawFoldoutInner drawFunc, GUIStyle style = null)
         {
             Foldout(ref foldoutProp, content, style);
             FoldoutWrappedInner(foldoutProp, drawFunc, 2);
         }
 
-        private static void FoldoutWrappedInner(bool foldoutProp, DrawHeaderFoldoutWrappedFunction drawFunc, in float space = 6)
+        public static void FoldoutWrappedInner(bool foldoutProp, DrawFoldoutInner drawFunc, in float space = 6)
         {
             // -- If closed, don't draw content
             if (foldoutProp == false)
@@ -265,26 +283,6 @@ namespace BetterEditor
         //   Toggle Methods
         // -------------------
         
-        public static void ToggleRowWithSliderRow(
-            SerializedProperty boolProp, 
-            SerializedProperty valProp, 
-            in GUIContent content, 
-            in float min,
-            in float max,
-            in bool enforceLimits = false,
-            bool setTrueOnMixed = true)
-        {
-            // -- Draw Toggle Row
-            ToggleRow(boolProp, content, setTrueOnMixed, false);
-            if (!boolProp.AnyTrue())
-                return;
-            
-            // -- Draw Slider Row Indented
-            EditorGUI.indentLevel += 1;
-            Slider(valProp, GUIContent.none, min, max, enforceLimits);
-            EditorGUI.indentLevel -= 1;
-        }
-
         
         // -- ToggleRow():
         //          - Very Similar to Unity's EditorGUILayout.PropertyField(bool) but with the toggle on the left side.

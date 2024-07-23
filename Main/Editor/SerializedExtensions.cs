@@ -1,3 +1,5 @@
+// Derived from BetterEditor (https://github.com/jackfranzen/BetterEditor)
+
 using System;
 using UnityEditor;
 using UnityEngine;
