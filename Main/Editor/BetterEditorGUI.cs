@@ -2,6 +2,7 @@
 //  (See BetterEditor/LICENSE.txt for details)
 
 using System;
+using System.Linq;
 using UnityEngine;
 using UnityEditor;
 
@@ -61,6 +62,58 @@ namespace BetterEditor
             return texture;
         }
         
+        // -------------------
+        //   Text Style
+        // -------------------
+        
+        
+        public static GUIStyle GetLabelStyle(ref GUIStyle style, in Color textColor, in FontStyle fontStyle = FontStyle.Normal, int fontSize = 12)
+        {
+            if (style != null)
+                return style;
+            style = new GUIStyle(EditorStyles.label)
+            {
+                normal =
+                {
+                    textColor = textColor
+                },
+                hover =
+                {
+                    textColor = textColor
+                },
+                fontStyle = fontStyle,
+                fontSize = fontSize
+            };
+            return style;
+        }
+        
+        // -------------------
+        //   Button Methods
+        // -------------------
+
+        
+        public static bool Button(GUIContent content, bool useColor, in Color color, bool expandHeight = true, params GUILayoutOption[] layoutOptions)
+        {
+            if (useColor)
+                return Button(content, color, expandHeight, layoutOptions);
+            return Button(content, expandHeight, layoutOptions);
+        }
+        
+        public static bool Button(GUIContent content, in Color color, bool expandHeight = true, params GUILayoutOption[] layoutOptions)
+        {
+            var savedColor = GUI.backgroundColor;
+            GUI.backgroundColor = color;
+            var pressed = Button(content, expandHeight, layoutOptions);
+            GUI.backgroundColor = savedColor;
+            return pressed;
+        }
+
+        public static bool Button(GUIContent content, bool expandHeight = true, params GUILayoutOption[] layoutOptions)
+        {
+            if (expandHeight)
+                layoutOptions = layoutOptions.Append(GUILayout.ExpandHeight(true)).ToArray();
+            return GUILayout.Button(content, layoutOptions);
+        }
         
         // --------------------
         //  Boxes and Dividers
