@@ -129,17 +129,26 @@ namespace BetterEditor
         }
 
         
+        // -- Why use these methods?
+        //        - boolValue only returns the value of the "primary" selected object (similar to all serialized properties)
+        //        - This method checks if any of the selected objects under this serialized property have a true value
+        //        - Used as a helper method for showing or hiding dependent UI, primarily. 
         public static bool AnyTrue(this SerializedProperty prop)
         {
-            // -- Why use this method?
-            //        - boolValue only returns the value of the "primary" selected object (similar to all serialized properties)
-            //        - This method checks if any of the selected objects under this serialized property have a true value
-            //        - Used as a helper method for showing or hiding dependent UI, primarily. 
-            
             if (prop.propertyType != SerializedPropertyType.Boolean)
                 throw new ArgumentException($"AnyTrue() for {prop.name} failed, got {prop.propertyType} but must be a boolean");
             
             return prop.boolValue || prop.hasMultipleDifferentValues;
+        }
+        public static bool AllTrue(this SerializedProperty prop)
+        {
+            if (prop.propertyType != SerializedPropertyType.Boolean)
+                throw new ArgumentException($"AnyTrue() for {prop.name} failed, got {prop.propertyType} but must be a boolean");
+            return prop.boolValue && !prop.hasMultipleDifferentValues;
+        }
+        public static bool AllFalse(this SerializedProperty prop)
+        {
+            return !prop.AnyTrue();
         }
 
         
