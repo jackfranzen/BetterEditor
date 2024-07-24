@@ -1,5 +1,5 @@
 A collection of tools to make Unity Editor work easier.
-Keep your components in-synce with your :Editor, using a SerializedProperty layer that makes reacting to changes a breeze!
+Keep your components in-sync with your Editor class, using a SerializedProperty layer that makes reacting to changes a breeze!
 (Totally free and open source, MIT License or whatever)
 
 **Contents**
