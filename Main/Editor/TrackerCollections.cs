@@ -17,6 +17,20 @@ namespace BetterEditor
         {
             trackers.Add(tracker);
         }
+        public void Set(params ISerializedTracker[] trackersIn)
+        {
+            trackers.Clear();
+            Add(trackersIn);
+        }
+        public void Set(IEnumerable<ISerializedTracker> trackersIn)
+        {
+            trackers.Clear();
+            Add(trackersIn);
+        }
+        public void Add(params ISerializedTracker[] trackersIn)
+        {
+            trackers.AddRange(trackersIn);
+        }
         public void Add(IEnumerable<ISerializedTracker> trackersIn)
         {
             trackers.AddRange(trackersIn);
