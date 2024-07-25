@@ -3,40 +3,101 @@
 
 using System;
 using System.Linq;
+using System.Reflection;
 using UnityEngine;
 using UnityEditor;
 
 namespace BetterEditor
 {
     
+    // -------------------
+    //   Scope Helpers
+    // -------------------
+        
+    public class IndentEditorLabelFieldScope : IDisposable
+    {
+        private bool m_Disposed;
+
+        public IndentEditorLabelFieldScope (GUIContent content, GUIStyle style = null, params GUILayoutOption[] options)
+        {
+            EditorGUILayout.LabelField(content, style ?? EditorStyles.boldLabel, options);
+            EditorGUI.indentLevel += 1;
+        }
+            
+        public IndentEditorLabelFieldScope (string content, GUIStyle style = null, params GUILayoutOption[] options)
+        {
+            EditorGUILayout.LabelField(content, style ?? EditorStyles.boldLabel, options);
+            EditorGUI.indentLevel += 1;
+        }
+
+        public void Dispose()
+        {
+            if (m_Disposed)
+                return;
+            m_Disposed = true;
+            EditorGUI.indentLevel -= 1;
+        }
+    }
+        
+    // -- Center content in scope within a EditorGUILayout.BeginVertical() using GUILayout.FlexibleSpace()
+    public class CenterVerticalScope : IDisposable
+    {
+        private bool m_Disposed;
+
+        public CenterVerticalScope(params GUILayoutOption[] options)
+        {
+            EditorGUILayout.BeginVertical(options);
+            GUILayout.FlexibleSpace();
+        }
+
+        public void Dispose()
+        {
+            if (m_Disposed)
+                return;
+        
+            m_Disposed = true;
+
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndVertical();
+        }
+    }
 
     public static class BetterEditorGUI
     {
-
         
-        public static bool PropertyFoldout(SerializedProperty sProp, GUIContent headerContent)
-        {
-            if (sProp == null)
-                throw new System.Exception($"DrawHeaderFoldout() failed, SerializedProperty is null");
-            return EditorGUILayout.PropertyField(sProp, headerContent, false);
-        }
+        // ---------------------------------------------------
+        //   Property Foldout Methods
+        //       - for structs / classes, supports copy/paste
+        // ---------------------------------------------------
         
-        public delegate void DrawPropertyFoldoutInner();
-        public static bool PropertyFoldout(SerializedProperty sProp, GUIContent headerContent, DrawPropertyFoldoutInner drawInnerFunc)
-        {
-            if (sProp == null)
-                throw new System.Exception($"DrawHeaderFoldout() failed, SerializedProperty is null");
-            var expanded = EditorGUILayout.PropertyField(sProp, headerContent, false);
-            if (expanded)
-            {
-                EditorGUI.indentLevel += 1;
-                drawInnerFunc();
-                EditorGUI.indentLevel -= 1;
-            }
-            return expanded;
-        }
+        // public static bool PropertyFoldout(SerializedProperty sProp, GUIContent headerContent)
+        // {
+        //     if (sProp == null)
+        //         throw new System.Exception($"DrawHeaderFoldout() failed, SerializedProperty is null");
+        //     return EditorGUILayout.PropertyField(sProp, headerContent, false);
+        // }
+        //
+        // public delegate void DrawPropertyFoldoutInner();
+        // public static bool PropertyFoldout(SerializedProperty sProp, GUIContent headerContent, DrawPropertyFoldoutInner drawInnerFunc)
+        // {
+        //     if (sProp == null)
+        //         throw new System.Exception($"DrawHeaderFoldout() failed, SerializedProperty is null");
+        //     
+        //     // -- Check expanded and return if not (using includeChildrenFalse)
+        //     var expanded = EditorGUILayout.PropertyField(sProp, headerContent, false);
+        //     if (!expanded) 
+        //         return false;
+        //     
+        //     // -- Draw inner and return true
+        //     using(new EditorGUI.IndentLevelScope())
+        //         drawInnerFunc();
+        //     return true;
+        // }
         
         
+        // ------------------------------
+        //   Box Styles and Textures
+        // ------------------------------
         
         public static GUIStyle MakeCustomBoxStyle(int width, int height, Color backgroundColor, Color borderColor, int borderWidth = 1)
         {
@@ -156,7 +217,7 @@ namespace BetterEditor
         //   Header Foldout
         // -------------------
 
-        public static void Foldout(ref bool foldoutProp, in GUIContent content, in GUIStyle style = null)
+        public static void Foldout(ref bool foldoutProp, GUIContent content, in GUIStyle style = null)
         {
             foldoutProp = EditorGUILayout.Foldout(foldoutProp, content, true, style ?? EditorStyles.foldout);
         }
@@ -167,7 +228,7 @@ namespace BetterEditor
         
         public delegate void DrawFoldoutInner();
         
-        public static void FoldoutWrapped(ref bool foldoutProp, in GUIContent content, DrawFoldoutInner drawFunc, GUIStyle style = null)
+        public static void FoldoutWrapped(ref bool foldoutProp, GUIContent content, DrawFoldoutInner drawFunc, GUIStyle style = null)
         {
             Foldout(ref foldoutProp, content, style);
             FoldoutWrappedInner(foldoutProp, drawFunc, 2);
@@ -214,7 +275,7 @@ namespace BetterEditor
         }
 
         // -- Property(), makes it easier to swap from Slider<->Property
-        public static void Property(SerializedProperty property, in GUIContent content, params GUILayoutOption[] layoutOptions)
+        public static void Property(SerializedProperty property, GUIContent content, params GUILayoutOption[] layoutOptions)
         {
             // -- mark input fields as NOPOPUP so RFLongOperationPopup doesn't steal focus from them.
             if(property.IsNumber())
@@ -224,7 +285,7 @@ namespace BetterEditor
             EditorGUILayout.PropertyField(property, content, layoutOptions);
         }
 
-        public static bool Slider(SerializedProperty property, in GUIContent content, in float min, in float max, bool enforceLimits = false)
+        public static bool Slider(SerializedProperty property, GUIContent content, in float min, in float max, bool enforceLimits = false)
         {
             var updated = SliderNoEnforce(property, min, max, content);
 
@@ -240,7 +301,7 @@ namespace BetterEditor
         //          - BUT the included input field does not enforce the range limitations! yipeee!
         //          - NOTE This will fail to draw an input field if Range() is defined for your serialized property,
         //              you should use EditorGuiLayout.PropertyField(float) in that case.
-        public static bool SliderNoEnforce(SerializedProperty property, in float min, in float max, in GUIContent content, bool drawFieldFirst = false)
+        public static bool SliderNoEnforce(SerializedProperty property, in float min, in float max, GUIContent content, bool drawFieldFirst = false)
         {
             if (!property.IsNumber())
                 throw new ArgumentException($"Property {property.displayName} must be a float or integer type to use Slider()");
@@ -342,38 +403,48 @@ namespace BetterEditor
         //          - Very Similar to Unity's EditorGUILayout.PropertyField(bool) but with the toggle on the left side.
         //          - Allows for longer names, easier access, better UX, and stuffing more data to the right of the label (see interactive mode toggle)
         //          - [TODO] bring some of the logic from UI_Interactive here, and allow for a content function which takes the currentX.
-        public static void ToggleRow(SerializedProperty sProp, in GUIContent content, bool setTrueOnMixed = true, bool forceFalse = false)
+        
+        public static void ToggleRow(SerializedProperty sProp, GUIContent content, bool setTrueOnMixed = true, bool forceFalse = false, int width = -1)
         {
+            ToggleRow(sProp, sProp, content, setTrueOnMixed, forceFalse, width);
+        }
+        public static void ToggleRow(SerializedProperty toggleProp, SerializedProperty rowProp, GUIContent content, bool setTrueOnMixed = true, bool forceFalse = false, int width = -1)
+        {
+
+            // -- Start
             var indentLevel = EditorGUI.indentLevel;
             EditorGUI.indentLevel = 0;
-            
-            // -- Make the entire Row into a right-clickable property
             Rect rect = EditorGUILayout.GetControlRect(true, EditorGUIUtility.singleLineHeight);
-            EditorGUI.BeginProperty(rect, content, sProp);
-    
-            EditorGUILayout.BeginHorizontal();
+            if (width > 0)
+                rect.width = width;
 
-            // -- Draw the Toggle
-            int indentOffset = indentLevel * 15; // -- Estimated Indent width
-            Rect toggleRect = new Rect(rect.x + indentOffset, rect.y, 15, rect.height);
-            //Rect toggleRect = new Rect(rect.x, rect.y, 15, rect.height);
+            // -- Property and Horizontal
+            using (new EditorGUI.PropertyScope(rect, content, rowProp))
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                // -- Draw the Toggle
+                int indentOffset = indentLevel * 15; // -- Estimated Indent width
+                Rect toggleRect = new Rect(rect.x + indentOffset, rect.y, 15, rect.height);
+                //Rect toggleRect = new Rect(rect.x, rect.y, 15, rect.height);
             
-            // -- If Property is null, draw a toggle forced to false
-            if (forceFalse) 
-                EditorGUI.Toggle(toggleRect, false);
-            else
-                RectToggle(toggleRect, sProp, setTrueOnMixed);
+                // -- If Property is null, draw a toggle forced to false
+                if (forceFalse) 
+                    EditorGUI.Toggle(toggleRect, false);
+                else
+                    RectToggle(toggleRect, toggleProp, setTrueOnMixed);
             
     
-            // -- Draw Content in Label
-            Rect labelRect = new Rect(rect.x + 20 + indentOffset, rect.y, rect.width - 20, rect.height);
-            EditorGUI.LabelField(labelRect, content);
+                // -- Draw Content in Label
+                Rect labelRect = new Rect(rect.x + 20 + indentOffset, rect.y, rect.width - 20, rect.height);
+                EditorGUI.LabelField(labelRect, content);
+            }
+
     
             // -- Finish
-            EditorGUILayout.EndHorizontal();
-            EditorGUI.EndProperty();
             EditorGUI.indentLevel = indentLevel;
         }
+        
+        
         
 
         public static void RectToggle(Rect toggleRect, SerializedProperty sProp, bool setTrueOnMixed)
