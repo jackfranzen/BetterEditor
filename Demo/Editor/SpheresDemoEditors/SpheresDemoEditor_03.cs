@@ -16,63 +16,80 @@ namespace BetterEditorDemos
         
         // -- Serialized Properties from the target component
         private SerializedProperty enablePreviewProp;
+        private SerializedProperty previewColorProp;
+        private SerializedProperty previewColorUseProp;
+        private SerializedProperty previewColorColorProp;
+        
         private SerializedProperty seedProp;
-        private SerializedProperty numSpheresProp;
-        private SerializedProperty colorDataProp;
-        private SerializedProperty colorDataUseProp;
-        private SerializedProperty colorDataColorProp;
         private SerializedProperty radiusProp;
-
-        // -- Tracked data for the properties
-        bool prev_enablePreview = false;
-        bool prevMulti_enablePreview = false;
-        int prev_seed = 0;
-        bool prevMulti_seed = false;
-        int prev_numSpheres = 0;
-        bool prevMulti_numSpheres = false;
-        bool prev_colorDataUse = false;
-        bool prevMulti_colorDataUse = false;
-        Color prev_colorDataColor = Color.cyan;
-        bool prevMulti_colorDataColor = false;
-        float prev_radius = 1f;
-        bool prevMulti_radius = false;
+        
+        private SerializedProperty numSpheresProp;
+        private SerializedProperty sphereColorProp;
+        private SerializedProperty sphereColorUseProp;
+        private SerializedProperty sphereColorColorProp;
         
         // -- We'll store modifications on the actual components now that we're experts at serialized properties
         //      (This will also keep our hasModifications up to date with our data when we use Undo/Redo, see other comments)
         private SerializedProperty hasModificationsProp;
+
+        // -- Trackers
+        private bool prev_enablePreview = false;
+        private bool prevMulti_enablePreview = false;
+        private bool prev_previewColorUse = false;
+        private bool prevMulti_previewColorUse = false;
+        private Color prev_previewColor = Color.cyan;
+        private bool prevMulti_previewColor = false;
+        
+        private int prev_seed = 0;
+        private bool prevMulti_seed = false;
+        private float prev_radius = 1f;
+        private bool prevMulti_radius = false;
+        
+        private int prev_numSpheres = 0;
+        private bool prevMulti_numSpheres = false;
+        private bool prev_colorDataUse = false;
+        private bool prevMulti_colorDataUse = false;
+        private Color prev_colorDataColor = Color.cyan;
+        private bool prevMulti_colorDataColor = false;
+        
         
         // -- Tracks whether our artificial foldout is expanded
         private bool foldoutExpanded = false;
 
         // -- Define GUIContent
         private GUIContent SeedsContent;
-        private GUIContent OtherPreviewPropsContent;
+        private GUIContent ExampleFoldoutContent;
         public void OnEnable()
         {
             // -- Build GUI Content
             SeedsContent = new GUIContent("Seeds!!!", "Give me seeds!!");
-            OtherPreviewPropsContent = new GUIContent("Other Preview Props", "These are other preview props");
+            ExampleFoldoutContent = new GUIContent("Example Foldout", "this is annoying, and also doesn't support right click copy/paste :(");
             
-            // -- 3 Basic Props
-            enablePreviewProp = serializedObject.FindProperty(nameof(DEMO.enablePreview));
-            seedProp = serializedObject.FindProperty(nameof(DEMO.seed));
-            numSpheresProp = serializedObject.FindProperty(nameof(DEMO.numSpheres));
-            radiusProp = serializedObject.FindProperty(nameof(DEMO.radius));
+            // -- Preview Props
+            enablePreviewProp = serializedObject.FindPropertyChecked(nameof(DEMO.enablePreview));
+            previewColorProp = serializedObject.FindPropertyChecked(nameof(DEMO.previewColor));
+            previewColorUseProp = previewColorProp.FindRelativeChecked(nameof(DEMO.previewColor.use)); // -- Relative
+            previewColorColorProp = previewColorProp.FindRelativeChecked(nameof(DEMO.previewColor.color)); // -- Relative
+            
+            // -- Distribution Props
+            seedProp = serializedObject.FindPropertyChecked(nameof(DEMO.seed));
+            radiusProp = serializedObject.FindPropertyChecked(nameof(DEMO.radius));
+            
+            // -- Spheres Props
+            numSpheresProp = serializedObject.FindPropertyChecked(nameof(DEMO.numResults));
+            sphereColorProp = serializedObject.FindPropertyChecked(nameof(DEMO.sphereColor));
+            sphereColorUseProp = sphereColorProp.FindRelativeChecked(nameof(DEMO.sphereColor.use)); // -- Relative
+            sphereColorColorProp = sphereColorProp.FindRelativeChecked(nameof(DEMO.sphereColor.color)); // -- Relative
             
             // -- Find the protected hasModifications property by name, using BetterEditor's FindPropertyChecked for safety
             //          (It's a good idea to always use this method in place of FindProperty)
             hasModificationsProp = serializedObject.FindPropertyChecked("hasModifications");
             
-            // -- Get the class, then get the next two properties relative to it
-            colorDataProp = serializedObject.FindProperty(nameof(DEMO.colorData));
-            colorDataUseProp = colorDataProp.FindPropertyRelative(nameof(DEMO.colorData.use));
-            colorDataColorProp = colorDataProp.FindPropertyRelative(nameof(DEMO.colorData.Color));
-            
             // -- Track!
-            TrackFromCurrentValues();
+            RefreshTracking();
         }
 
-        private void TrackFromCurrentValues()
+        private void RefreshTracking()
         {
             // -- Track all properties which can update individually 
             //        - A boolValue can remain in its original true or false state, even when toggled, 
@@ -80,16 +97,22 @@ namespace BetterEditorDemos
             //        - Therefore, hasMultipleDifferentValues must be tracked.
             prev_enablePreview = enablePreviewProp.boolValue;
             prevMulti_enablePreview = enablePreviewProp.hasMultipleDifferentValues;
+            prev_previewColorUse = previewColorUseProp.boolValue;
+            prevMulti_previewColorUse = previewColorUseProp.hasMultipleDifferentValues;
+            prev_previewColor = previewColorColorProp.colorValue;
+            prevMulti_previewColor = previewColorColorProp.hasMultipleDifferentValues;
+            
             prev_seed = seedProp.intValue;
             prevMulti_seed = seedProp.hasMultipleDifferentValues;
-            prev_numSpheres = numSpheresProp.intValue;
-            prevMulti_numSpheres = numSpheresProp.hasMultipleDifferentValues;
-            prev_colorDataUse = colorDataUseProp.boolValue;
-            prevMulti_colorDataUse = colorDataUseProp.hasMultipleDifferentValues;
-            prev_colorDataColor = colorDataColorProp.colorValue;
-            prevMulti_colorDataColor = colorDataColorProp.hasMultipleDifferentValues;
             prev_radius = radiusProp.floatValue;
             prevMulti_radius = radiusProp.hasMultipleDifferentValues;
+            
+            prev_numSpheres = numSpheresProp.intValue;
+            prevMulti_numSpheres = numSpheresProp.hasMultipleDifferentValues;
+            prev_colorDataUse = sphereColorUseProp.boolValue;
+            prevMulti_colorDataUse = sphereColorUseProp.hasMultipleDifferentValues;
+            prev_colorDataColor = sphereColorColorProp.colorValue;
+            prevMulti_colorDataColor = sphereColorColorProp.hasMultipleDifferentValues;
         }
         
 
@@ -111,37 +134,43 @@ namespace BetterEditorDemos
                 serializedObject.ApplyModifiedPropertiesWithoutUndo(); 
             }
             
-            
+             
             // -- DRAW THE MAIN UI
             {
-                // -- Draw 3 Fields
                 EditorGUILayout.LabelField("Preview Props:", EditorStyles.boldLabel);
                 EditorGUI.indentLevel += 1;
-                
+                EditorGUILayout.HelpBox(SpheresDemoEditors.GizmosInfo, MessageType.Info);
                 EditorGUILayout.PropertyField(enablePreviewProp);
-                
-                // -- Color Data (disabled if no preview)
-                GUI.enabled = enablePreviewProp.AnyTrue();
-                EditorGUILayout.PropertyField(colorDataProp, true);
-                GUI.enabled = true;
-
-                // -- Draw Other Preview Props in a foldout (with examples for changing content and tooltips)
-                if (enablePreviewProp.AnyTrue())
+                // -- Alternate to GUI.enabled from Unity
+                using (new EditorGUI.DisabledScope(enablePreviewProp.AllFalse()))
                 {
-                    foldoutExpanded = EditorGUILayout.Foldout(foldoutExpanded, OtherPreviewPropsContent, true, EditorStyles.foldout);
-                    if (foldoutExpanded)
-                    {
-                        EditorGUI.indentLevel += 1;
-                        EditorGUILayout.PropertyField(seedProp, SeedsContent);
-                        EditorGUILayout.PropertyField(numSpheresProp);
-                        EditorGUI.indentLevel -= 1;
-                    }
+                    EditorGUILayout.PropertyField(previewColorProp, true);
+                }
+                EditorGUI.indentLevel -= 1;
+                
+                EditorGUILayout.LabelField("Distribution Props:", EditorStyles.boldLabel);
+                // -- Alternate to EditorGUI.IndentLevel += 1, from Unity
+                using( new EditorGUI.IndentLevelScope() )
+                {
+                    EditorGUILayout.PropertyField(seedProp, SeedsContent);
+                    EditorGUILayout.PropertyField(radiusProp);
                 }
                 
-                EditorGUI.indentLevel -= 1;
+                EditorGUILayout.LabelField("Spheres Props:", EditorStyles.boldLabel);
+                using (new EditorGUI.IndentLevelScope())
+                {
+                    foldoutExpanded = EditorGUILayout.Foldout(foldoutExpanded, ExampleFoldoutContent, true, EditorStyles.foldout);
+                    if (foldoutExpanded)
+                        using (new EditorGUI.IndentLevelScope())
+                        {
+                            EditorGUILayout.PropertyField(numSpheresProp);
+                            EditorGUILayout.PropertyField(sphereColorProp, true);
+                        }
+                }
+                
             }
             
-            // -- Clamp the number of spheres using BetterEditor's Enforce methods
+            // -- Clamp property limits using BetterEditor's Enforce methods
             numSpheresProp.EnforceClamp(4, 100);
             seedProp.EnforceMinimum(0);
             //  - Do NOT use .intValue = Mathf.Clamp()!!!
@@ -150,55 +179,59 @@ namespace BetterEditorDemos
             
             
             // -- Updated Preview Enabled?
+            //      (Note: These properties don't trigger HasModified, as they are automatically being drawn as a gizmo and don't indicate a change in data)
             var updated_previewEnabled = false;
             updated_previewEnabled |= prev_enablePreview != enablePreviewProp.boolValue;
             updated_previewEnabled |= prevMulti_enablePreview != enablePreviewProp.hasMultipleDifferentValues;
+            updated_previewEnabled |= prev_previewColorUse != previewColorUseProp.boolValue;
+            updated_previewEnabled |= prevMulti_previewColorUse != previewColorUseProp.hasMultipleDifferentValues;
+            updated_previewEnabled |= prev_previewColor != previewColorColorProp.colorValue;
+            updated_previewEnabled |= prevMulti_previewColor != previewColorColorProp.hasMultipleDifferentValues;
+            if(updated_previewEnabled)
+                Debug.Log($"Better Editor Demo: EnablePreview updated to {enablePreviewProp.AnyTrue()} ");
+                
+            // -- Updated Distribution Props?
+            var updated_distribution = false;
+            updated_distribution |= prev_seed != seedProp.intValue;
+            updated_distribution |= prevMulti_seed != seedProp.hasMultipleDifferentValues;
+            updated_distribution |= prev_radius != radiusProp.floatValue;
+            updated_distribution |= prevMulti_radius != radiusProp.hasMultipleDifferentValues;
             
-            // -- Updated Color Data?
-            var updated_colorData = false;
-            updated_colorData |= prev_colorDataUse != colorDataUseProp.boolValue;
-            updated_colorData |= prevMulti_colorDataUse != colorDataUseProp.hasMultipleDifferentValues;
-            updated_colorData |= prev_colorDataColor != colorDataColorProp.colorValue;
-            updated_colorData |= prevMulti_colorDataColor != colorDataColorProp.hasMultipleDifferentValues;
+            // -- Updated Spheres Props?
+            var updated_spheres = false;
+            updated_spheres |= prev_numSpheres != numSpheresProp.intValue;
+            updated_spheres |= prevMulti_numSpheres != numSpheresProp.hasMultipleDifferentValues;
+            updated_spheres |= prev_colorDataUse != sphereColorUseProp.boolValue;
+            updated_spheres |= prevMulti_colorDataUse != sphereColorUseProp.hasMultipleDifferentValues;
+            updated_spheres |= prev_colorDataColor != sphereColorColorProp.colorValue;
+            updated_spheres |= prevMulti_colorDataColor != sphereColorColorProp.hasMultipleDifferentValues;
             
-            // -- Updated Other Props?
-            var updated_other = false;
-            updated_other |= prev_seed != seedProp.intValue;
-            updated_other |= prevMulti_seed != seedProp.hasMultipleDifferentValues;
-            updated_other |= prev_numSpheres != numSpheresProp.intValue;
-            updated_other |= prevMulti_numSpheres != numSpheresProp.hasMultipleDifferentValues;
-            updated_other |= prev_radius != radiusProp.floatValue;
-            
-
-            
-            // -- Respond to specific changes
+            // -- Was PreviewEnabled Updated?
             if (updated_previewEnabled)
             {
-                // -- Expand or close foldouts (including the foldout powered by the serialized property)
-                foldoutExpanded = enablePreviewProp.AnyTrue();
-                colorDataProp.isExpanded = enablePreviewProp.AnyTrue();
+                // -- Why use AnyTrue() here?
+                //       - Even though user updates always collapse hasMultipleDifferentValues to false,
+                //              updates from undo could set it back to true.
+                //       - In later demos, we'll be able to have different reactions to undo vs user changes.  
+                
+                // -- Expand or close the preview Color struct automatically when updating previewEnabled
+                previewColorProp.isExpanded = enablePreviewProp.AnyTrue();
                 
                 Debug.Log($"Better Editor Demo: EnablePreview updated to {enablePreviewProp.AnyTrue()} ");
                 
-                // -- Example: Set Seed to 0 when preview is disabled
-                if (!enablePreviewProp.AnyTrue())
-                    seedProp.intValue = 0;
+                // -- Example: Set Color.use to false when preview is disabled (bad UX, but for demo)
+                if (enablePreviewProp.AllFalse())
+                    previewColorUseProp.boolValue = false;
             }
             
-            // -- Respond to other changes in data
-            if(updated_colorData)
-                Debug.Log("Better Editor Demo: Color Data Changed");
-            if(updated_other)
-                Debug.Log("Better Editor Demo: Other Props Changed");
             
-            // -- Check if anything was Updated
-            var updated_Any = updated_previewEnabled || updated_colorData || updated_other;
-            if (updated_Any)
+            // -- Were important modifications (distribute or spheres) updated?
+            if (updated_distribution || updated_spheres)
             {
                 
                 // -- Reset Trackers to current state, to detect changes from this point on
                 //      (Can re-track at any time, relative to applying changes)
-                TrackFromCurrentValues();
+                RefreshTracking();
                 
                 // -- Apply any GUI and all serializedProperty value changes back to our target components
                 serializedObject.ApplyModifiedProperties();
@@ -211,7 +244,8 @@ namespace BetterEditorDemos
             
             
             // -- Backup, Apply any GUI changes to properties that might not have been tracked
-            //     (Note, it's okay to do this twice, it won't do anything if there aren't changes)
+            //      - For example, for any other or new properties on the component which aren't tracked
+            //      - It's okay to do this twice, it won't do anything if there aren't changes
             serializedObject.ApplyModifiedProperties();
         }
         

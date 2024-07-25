@@ -54,8 +54,7 @@ namespace BetterEditorDemos
             
             // -- Check if the property is true for ALL selected components
             //        (SerializedProperties can represent data for multiple components!)
-            var previewEnabledAll = enablePreviewProp.boolValue && !enablePreviewProp.hasMultipleDifferentValues;
-            var allEnabledUsingBetterMethod = enablePreviewProp.AllTrue();
+            var anyPreviewsEnabled = enablePreviewProp.AnyTrue();
             
             // -- Draw default inspector by iterating properties
             SerializedProperty serializedPropIterator = serializedObject.GetIterator();
@@ -72,17 +71,13 @@ namespace BetterEditorDemos
                     continue;
 
                 // -- All other properties are disabled if preview is disabled
-                bool propEnabled = previewEnabledAll; 
+                bool propEnabled = true; 
                 
-                // -- Seed is always enabled
-                if(propPath == nameof(DEMO_02.seed))
-                    propEnabled = true;
+                // -- preview color is only enabled if preview is enabled
+                if(propPath == nameof(DEMO_02.previewColor))
+                    propEnabled = anyPreviewsEnabled;
                 
-                // -- enablePreview is always enabled
-                if(propPath == enablePreviewProp.propertyPath)
-                    propEnabled = true;
-                
-                // -- Unfortunately, we can't disable individual properties within out struct or objects...
+                // -- Unfortunately, we can't disable individual child properties within our color classes...
 
                 // -- Universal Property Drawer
                 //      (draws a fully functional editor row, with right click support, tooltip support, all propertyDrawers, etcs)
