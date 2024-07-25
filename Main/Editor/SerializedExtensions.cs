@@ -2,6 +2,7 @@
 //  (See BetterEditor/LICENSE.txt for details)
 
 using System;
+using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 
@@ -10,7 +11,32 @@ namespace BetterEditor
     public static class SerializedExtensionMethods
     {
         
-        public static SerializedProperty FindPropertyChecked(this SerializedObject sObject, string name)
+        // -------------------------------------
+        //        Core GUI Methods
+        // -------------------------------------
+        
+        public static GUIContent GetGUIContent(this SerializedProperty property)
+        {
+            return new GUIContent(property.displayName, property.tooltip);
+        }
+        
+        public static bool DrawDefaultEditor_NoUpdates(this SerializedObject sObject)
+        {
+            EditorGUI.BeginChangeCheck();
+            SerializedProperty iterator = sObject.GetIterator();
+            for (bool enterChildren = true; iterator.NextVisible(enterChildren); enterChildren = false)
+            {
+                using (new EditorGUI.DisabledScope("m_Script" == iterator.propertyPath))
+                    EditorGUILayout.PropertyField(iterator, true);
+            }
+            return EditorGUI.EndChangeCheck();
+        }
+        
+        // -------------------------------------
+        //      Find Properties with Check
+        // -------------------------------------
+        
+        public static SerializedProperty FindPropertyChecked(this SerializedObject sObject, in string name)
         {
             var prop = sObject.FindProperty(name);
             if (prop != null)
@@ -23,7 +49,7 @@ namespace BetterEditor
             return null;
         }
         
-        public static SerializedProperty FindRelativeChecked(this SerializedProperty parent, string name)
+        public static SerializedProperty FindRelativeChecked(this SerializedProperty parent, in string name)
         {
             var prop = parent.FindPropertyRelative(name);
             if (prop != null)
@@ -33,41 +59,14 @@ namespace BetterEditor
             return null;
         }
         
-        // -- Enforce Min/Max/Clamp Methods 
-        //       -  IMPORTANT: Like with any serializedProperty.value setter, this will cause a property
-        //                     representing mixed values to collapse to a single value if a change is made.
-        public static void EnforceMinimum(this SerializedProperty prop, float min)
-        {
-            if (prop.IsNumber() == false)
-                throw new ArgumentException($"EnforceMinimum() for {prop.name} failed, got {prop.propertyType} but must be a number");
-            
-            if (prop.GetNumberValue() < min)
-                prop.SetNumberValue(min);
-        }
-        
-        public static void EnforceMaximum(this SerializedProperty prop, float max)
-        {
-            if (prop.IsNumber() == false)
-                throw new ArgumentException($"EnforceMaximum() for {prop.name} failed, got {prop.propertyType} but must be a number");
-            if (prop.GetNumberValue() > max)
-                prop.SetNumberValue(max);
-        }
-        
-        public static void EnforceClamp(this SerializedProperty prop, float min, float max)
-        {
-            if (prop.IsNumber() == false)
-                throw new ArgumentException($"EnforceClamp() for {prop.name} failed, got {prop.propertyType} but must be a number");
-            
-            prop.EnforceMinimum(min);
-            prop.EnforceMaximum(max);
-        }
-        
+        // -------------------------------------
+        //      Number
+        // -------------------------------------
         
         public static bool IsNumber(this SerializedProperty prop)
         {
             return prop.IsFloat() || prop.IsInt();
         }
-
 
         public static float GetNumberValue(this SerializedProperty prop)
         {
@@ -108,26 +107,10 @@ namespace BetterEditor
             return false;
         }
         
-        public static bool WasUpdated(this SerializedProperty prop, object previousValue, bool hasMixedValue)
-        {
-            // -- Note, this method only works for basic property types
-            //          - lists, classes and structs are not supported
-            
-            // -- Why check hasMultipleDifferentValues?
-            //          - a selection of booleans (for example) on a serialized Property can be updated from boolValue == true -> boolValue == true.
-            //          - In this case, only hasMultipleDifferentValues is actually being changed, but it's a change nonetheless.
-            
-            if(prop == null)
-                throw new ArgumentException("WasUpdated() failed, prop is null");
-            
-            if(hasMixedValue != prop.hasMultipleDifferentValues)
-                return true;
 
-            var newValue = prop.GetPropertyObjectValue();
-            var isDifferent = BetterCompareObjects(newValue, previousValue) == false;
-            return isDifferent;
-        }
-
+        // -------------------------------------
+        //      Boolean
+        // -------------------------------------
         
         // -- Why use these methods?
         //        - boolValue only returns the value of the "primary" selected object (similar to all serialized properties)
@@ -152,8 +135,70 @@ namespace BetterEditor
         }
 
         
+        // ----------------------------------
+        //     Enforce Range Methods
+        // ----------------------------------
+        
+        
+        // -- Enforce Min/Max/Clamp Methods 
+        //       -  IMPORTANT: Like with any serializedProperty.value setter, this will cause a property
+        //                     representing mixed values to collapse to a single value if a change is made.
+        public static void EnforceMinimum(this SerializedProperty prop, float min)
+        {
+            if (prop.IsNumber() == false)
+                throw new ArgumentException($"EnforceMinimum() for {prop.name} failed, got {prop.propertyType} but must be a number");
+            
+            if (prop.GetNumberValue() < min)
+                prop.SetNumberValue(min);
+        }
+        
+        public static void EnforceMaximum(this SerializedProperty prop, float max)
+        {
+            if (prop.IsNumber() == false)
+                throw new ArgumentException($"EnforceMaximum() for {prop.name} failed, got {prop.propertyType} but must be a number");
+            if (prop.GetNumberValue() > max)
+                prop.SetNumberValue(max);
+        }
+        
+        public static void EnforceClamp(this SerializedProperty prop, float min, float max)
+        {
+            if (prop.IsNumber() == false)
+                throw new ArgumentException($"EnforceClamp() for {prop.name} failed, got {prop.propertyType} but must be a number");
+            
+            prop.EnforceMinimum(min);
+            prop.EnforceMaximum(max);
+        }
+        
+        
+        
+        
+        // ----------------------------------------
+        //          Was Updated Methods 
+        //    (object getters and comparisons)
+        // ----------------------------------------
+        
+        public static bool WasUpdated(this SerializedProperty prop, object previousValue, bool hasMixedValue)
+        {
+            // -- Note, this method only works for basic property types
+            //          - lists, classes and structs are not supported
+            
+            // -- Why check hasMultipleDifferentValues?
+            //          - a selection of booleans (for example) on a serialized Property can be updated from boolValue == true -> boolValue == true.
+            //          - In this case, only hasMultipleDifferentValues is actually being changed, but it's a change nonetheless.
+            
+            if(prop == null)
+                throw new ArgumentException("WasUpdated() failed, prop is null");
+            
+            if(hasMixedValue != prop.hasMultipleDifferentValues)
+                return true;
+
+            var newValue = prop.BetterObjectValue();
+            var isDifferent = BetterCompareObjects(newValue, previousValue) == false;
+            return isDifferent;
+        }
+        
         // -- Thank you Unity
-        public static object GetPropertyObjectValue(this SerializedProperty prop)
+        public static object BetterObjectValue(this SerializedProperty prop)
         {
             switch (prop.propertyType)
             {
@@ -236,13 +281,6 @@ namespace BetterEditor
             return obj1.Equals(obj2);
         }
         
-        public static void ThrowIfBadType(this SerializedProperty sProp, System.Type type)
-        {
-            // -- Check Type
-            var isPrimaryPropertyOfTargetClassType = (sProp.type == type.Name);
-            if (!isPrimaryPropertyOfTargetClassType)
-                throw new System.Exception($"Property {sProp.displayName} is not of type {type.Name}");
-        }
         
     }
 }
