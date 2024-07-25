@@ -47,7 +47,7 @@ namespace BetterEditor
         private TargetClass target;
         private List<TargetClass> validTargets = new ();
         public SerializedObject serializedObject { get; private set; }
-        public BasicTrackerCollection collection { get; private set; } = new ();
+        public TrackerCollection collection { get; private set; } = new ();
         public HashSet<SerializedObject> allSerializedObjects  { get; private set; } = new ();
 
         // -- Internal Getters
@@ -113,8 +113,8 @@ namespace BetterEditor
             if (!hasNonstandardOp)
             {
                 // -- Find all changes to tracked serialized Properties, On tick!
-                var logMode = logAllTrackerUpdates ? SerializedTrackerLogging.LogIfUpdated : SerializedTrackerLogging.None;
-                var trackersUpdated = collection.AnyWasUpdated(logMode);
+                var logMode = logAllTrackerUpdates ? TrackLogging.LogIfUpdated : TrackLogging.None;
+                var trackersUpdated = collection.WasUpdated(logMode);
                 if (trackersUpdated && !logAllTrackerUpdates && logImporantFunctions)
                     Debug.Log("Better Editor: Detected Tracker Update");
 
@@ -175,7 +175,7 @@ namespace BetterEditor
             
             // -- Log full Tracker Update
             if(logAllTrackerUpdates)
-                collection.AnyWasUpdated(SerializedTrackerLogging.LogIfUpdated);
+                collection.WasUpdated(TrackLogging.LogIfUpdated);
             
             // -- Perform User Update
             HandlePropertiesUpdatedAndDoFullRefresh(UpdateSource.User);
@@ -269,7 +269,7 @@ namespace BetterEditor
                 collection.Clear();
                 
                 BuildTrackers.Invoke();
-                if (logImportantWarnings && collection.Empty)
+                if (logImportantWarnings && collection.IsEmpty)
                     Debug.LogWarning("BetterEditor: BuildTrackers did not repopulate collection, can't detect automatically...");
             }
             else if (logImportantWarnings)

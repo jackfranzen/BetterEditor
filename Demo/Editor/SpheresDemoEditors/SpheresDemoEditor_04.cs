@@ -13,54 +13,63 @@ namespace BetterEditorDemos
         
         // -- Used for nameof()
         private static SpheresDemo DEMO;
+        private static SpheresDemo_ColorData COLORDATA;
+        
+        // -- Serialized Properties (Ones we don't track explicitly)
+        private SerializedProperty previewColorProp;
+        private SerializedProperty sphereColorProp;
+        private SerializedProperty hasModificationsProp;
         
         // -- BetterEditor: SerializedTrackers for all properties
         //          (optionally, with property names predefined)
-        private SerializedTracker enablePreviewTracker = new( nameof(DEMO.enablePreview) );
-        private SerializedTracker seedTracker = new( nameof(DEMO.seed) );
-        private SerializedTracker numSpheresTracker = new( nameof(DEMO.numSpheres) );
-        private SerializedTracker colorDataUseTracker = new( nameof(DEMO.colorData.use) ); // -- relative to colorDataProp
-        private SerializedTracker colorDataColorTracker = new( nameof(DEMO.colorData.Color) ); // -- relative to colorDataProp
+        private Tracker enablePreviewTracker = new( nameof(DEMO.enablePreview) );
+        private Tracker previewColorUseTracker = new( nameof(COLORDATA.use) ); // -- relative to previewColorProp
+        private Tracker previewColorColorTracker = new( nameof(COLORDATA.color) ); // -- relative to previewColorProp
+        
+        private Tracker seedTracker = new( nameof(DEMO.seed) );
+        private Tracker radiusTracker = new( nameof(DEMO.radius) );
+        
+        private Tracker numSpheresTracker = new( nameof(DEMO.numResults) );
+        private Tracker sphereColorUseTracker = new( nameof(COLORDATA.use) ); // -- relative to sphereColorProp
+        private Tracker sphereColorColorTracker = new( nameof(COLORDATA.color) ); // -- relative to sphereColorProp
         
         // -- Collections for Trackers
-        private BasicTrackerCollection allCollection = new();
-        private BasicTrackerCollection colorPropCollection = new();
-        private BasicTrackerCollection otherPropCollection = new();
-        
-        // -- Property for the colorData class
-        private SerializedProperty colorDataProp;
-        
-        // -- Storing hasModification on the target component
-        private SerializedProperty hasModificationsProp;
+        private TrackerCollection allCollection = new();
+        private TrackerCollection previewPropCollection = new();
+        private TrackerCollection importantPropCollection = new();
         
         public void OnEnable()
         {
+            // --  Get all Trackers 
+            //      (Technically gets more than that, see next step...)
+            allCollection.PopulateWithReflection(this);
+            
             // -- Setup Collections for convenience
-            allCollection.Set(enablePreviewTracker, seedTracker, numSpheresTracker, colorDataUseTracker,
-                colorDataColorTracker);
-            colorPropCollection.Set(colorDataUseTracker, colorDataColorTracker);
-            otherPropCollection.Set(enablePreviewTracker, seedTracker, numSpheresTracker);
+            previewPropCollection.Set(previewColorUseTracker, previewColorColorTracker);
+            importantPropCollection.Set(seedTracker, radiusTracker, numSpheresTracker, sphereColorUseTracker, sphereColorColorTracker);
 
-            // -- Get the colorData property
-            colorDataProp = serializedObject.FindProperty(nameof(DEMO.colorData));
-
-            // -- Get the hasModifications property
+            // -- Get Serialized Properties
+            previewColorProp = serializedObject.FindPropertyChecked(nameof(DEMO.previewColor));
+            sphereColorProp = serializedObject.FindPropertyChecked(nameof(DEMO.sphereColor));
             hasModificationsProp = serializedObject.FindPropertyChecked("hasModifications");
 
             // -- Track!
-            TrackFromCurrentValues();
+            RefreshTracking();
         }
         
-        public void TrackFromCurrentValues()
+        public void RefreshTracking()
         {
-            // -- 3 Primary Trackers from SerializedObject
-            enablePreviewTracker.Track(serializedObject);
-            seedTracker.Track(serializedObject);
-            numSpheresTracker.Track(serializedObject);
+            // -- Preview Props
+            enablePreviewTracker.Track(serializedObject.AsSource());
+            previewColorUseTracker.Track(previewColorProp.AsRelativeSource());
+            previewColorColorTracker.Track(previewColorProp.AsRelativeSource());
             
-            // -- 2 Relative Trackers from colorData SerializedProperty
-            colorDataUseTracker.TrackRelative(colorDataProp);
-            colorDataColorTracker.TrackRelative(colorDataProp);
+            // -- Important Props
+            seedTracker.Track(serializedObject.AsSource());
+            numSpheresTracker.Track(serializedObject.AsSource());
+            radiusTracker.Track(serializedObject.AsSource());
+            sphereColorUseTracker.Track(sphereColorProp.AsRelativeSource()); 
+            sphereColorColorTracker.Track(sphereColorProp.AsRelativeSource());
         }
 
         // -- Unity->OnInspectorGUI
@@ -85,15 +94,14 @@ namespace BetterEditorDemos
             // -- Draw the default inspector (Nothing Fancy)
             //        - Using BetterEditor's DrawDefaultEditor_NoUpdates to avoid sObject Update() and Apply()
             //        - (It's generally better to apply in a controlled manner after making any additional serialized val changes)
-            this.DrawDefaultEditor_NoUpdates();
-            
+            serializedObject.DrawDefaultEditor_NoUpdates();
             
             // -- Clamp the number of spheres using BetterEditor's Enforce methods
-            numSpheresTracker.prop.EnforceClamp(4, 100);
-            seedTracker.prop.EnforceMinimum(0);
             //  - Do NOT use .intValue = Mathf.Clamp()!!!
             //          - It would cause the value to immediately collapse to a single value when selecting multiple
             //            components with mixed Values! 
+            numSpheresTracker.prop.EnforceClamp(4, 100);
+            seedTracker.prop.EnforceMinimum(0);
             
             // -- Example: Set seed to 0 when preview is disabled
             if(enablePreviewTracker.WasUpdated())
@@ -101,7 +109,7 @@ namespace BetterEditorDemos
                     seedTracker.prop.intValue = 0;
             
             // -- Check (and Log) if anything was updated!
-            var updated_Any = allCollection.AnyWasUpdated(SerializedTrackerLogging.LogIfUpdated);
+            var updated_Any = allCollection.WasUpdated(TrackLogging.LogIfUpdated);
             if (updated_Any)
             {
                 // -- Apply any GUI and all serializedProperty value changes back to our target components
@@ -114,7 +122,7 @@ namespace BetterEditorDemos
                 
                 // -- Reset Trackers to current state, to detect changes from this point on
                 //      (Can re-track at any time, relative to applying changes)
-                TrackFromCurrentValues();
+                RefreshTracking();
             }
             
             

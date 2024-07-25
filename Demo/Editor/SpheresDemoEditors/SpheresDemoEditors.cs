@@ -16,6 +16,7 @@ namespace BetterEditorDemos
         BasicSerialized = 2,
         FullSerialized = 3,
         BetterTrackers = 4,
+        TrackAndDrawCollections = 5,
     }
 
     
@@ -105,6 +106,12 @@ namespace BetterEditorDemos
             component = typeof(SpheresDemo_04),
         };
         
+        public static SphereDemoInfo Demo_05 = new ()
+        {
+            stage = ESpheresDemoStages.TrackAndDrawCollections,
+            component = typeof(SpheresDemo_05),
+        };
+        
         public static SphereDemoInfo DemoByEnum(ESpheresDemoStages stage)
         {
             switch (stage)
@@ -117,6 +124,8 @@ namespace BetterEditorDemos
                     return Demo_03;
                 case ESpheresDemoStages.BetterTrackers:
                     return Demo_04;
+                case ESpheresDemoStages.TrackAndDrawCollections:
+                    return Demo_05;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(stage), stage, null);
             }
@@ -137,6 +146,9 @@ namespace BetterEditorDemos
         }
 
         public static GUIStyle dividerStyle = BetterEditorGUI.CreateThinBox(2, 8, 8);
+
+        public const string GizmosInfo =
+            "Enables a gizmo preview of the sphere distribution, these props don't requires an update and aren't tracked";
         
         //public static ESpheresDemoStages currentSelection = ESpheresDemoStages.UnityChangeChecking;
         
@@ -159,30 +171,22 @@ namespace BetterEditorDemos
             GUILayout.Space(4);
 
             // -- Horizontal Row with Controls
+            using (new EditorGUILayout.HorizontalScope(GUILayout.Height(25)))
             {
-                EditorGUILayout.BeginHorizontal(GUILayout.Height(25));
-                
-                // -- Enum Popup
-                EditorGUILayout.BeginVertical(GUILayout.Width(180));
-                GUILayout.FlexibleSpace();
-                newStage =
-                    (ESpheresDemoStages)EditorGUILayout.EnumPopup(GUIContent.none, previousStage,
-                        GUILayout.Width(180));
-                GUILayout.FlexibleSpace();
-                EditorGUILayout.EndVertical();
-                
+                // -- Enum Popup (centered vertically using BetterEditorGUI scope)
+                var width1 = GUILayout.Width(180);
+                using (new CenterVerticalScope(width1))
+                    newStage = (ESpheresDemoStages)EditorGUILayout.EnumPopup(GUIContent.none, previousStage, width1);
+
                 // -- Linker to script
-                GUI.enabled = false;
-                EditorGUILayout.ObjectField(currentEditorScript, typeof(MonoScript), false, GUILayout.ExpandHeight(true));
-                
+                using (new EditorGUI.DisabledScope(true))
+                    EditorGUILayout.ObjectField(currentEditorScript, typeof(MonoScript), false,
+                        GUILayout.ExpandHeight(true));
+
                 // -- Open Script Magic
-                GUI.enabled = HasEditorScript();
-                if (BetterEditorGUI.Button(new GUIContent("Open"), Color.green, true, GUILayout.Width(60)))
-                    OpenEditorScript();
-                
-                // -- Finish Row
-                GUI.enabled = true;
-                EditorGUILayout.EndHorizontal();
+                using (new EditorGUI.DisabledScope(HasEditorScript() == false))
+                    if (BetterEditorGUI.Button(new GUIContent("Open"), Color.green, true, GUILayout.Width(60)))
+                        OpenEditorScript();
             }
             
             // -- Vertical Space
