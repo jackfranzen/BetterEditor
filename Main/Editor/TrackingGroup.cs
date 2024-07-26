@@ -3,91 +3,24 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using UnityEditor;
 
 namespace BetterEditor
 {
 
-    // -- Object with a HashSet of ITrack objects that can be checked for updates with WasUpdates, virtual for override.
-    public class TrackerCollection : ITrack
+    public class TrackingGroup : HashSet<ITrack>, ITrack
     {
-        // ------------------------------------------------
-        //       Child Management Methods
-        // ------------------------------------------------
-        protected HashSet<ITrack> subTrackers = new ();
-        public void Clear() => subTrackers.Clear();
-        public int Count => subTrackers.Count;
-        public bool IsEmpty => subTrackers.Count == 0;
         
-        public void Add(ITrack tracker)
+        // -- Constructor
+        //      - @ExpectedTypeIn: Optionally set an expected type for Collections that call .Track(), only used for
+        //              non-top-level collections that call .SetAsRelative()
+        public TrackingGroup(System.Type expectedTypeIn)
         {
-            subTrackers.Add(tracker);
+            SetExpectedType(expectedTypeIn);
         }
-        public void Add(IEnumerable<ITrack> trackersIn)
-        {
-            subTrackers.UnionWith(trackersIn);
-        }
-        public void Add(params ITrack[] trackersIn)
-        {
-            subTrackers.UnionWith(trackersIn);
-        }
-        public void Add(params IEnumerable<ITrack>[] trackersIn)
-        {
-            foreach (var trackers in trackersIn)
-                subTrackers.UnionWith(trackers);
-        }
-        public void Set(IEnumerable<ITrack> trackersIn)
-        {
-            Clear();
-            Add(trackersIn);
-        }
-        public void Set(params ITrack[] trackersIn)
-        {
-            Clear();
-            Add(trackersIn);
-        }
-        public void Set(params IEnumerable<ITrack>[] trackersIn)
-        {
-            Clear();
-            Add(trackersIn);
-        }
-        
-        // -------------------------
-        //    ITrack Interface
-        // -------------------------
-        // -- Check if any Sub-trackers in the collection was updated
-        public virtual bool WasUpdated(TrackLogging log = TrackLogging.None)
-        {
-            if (IsEmpty)
-                throw new Exception($"{GetType()}.WasUpdated() called on empty collection");
-            
-            var wasUpdated = false;
-            foreach (var tracker in subTrackers)
-            {
-                // -- Skip if not updated
-                if (!tracker.WasUpdated(log)) 
-                    continue;
-                // -- Immediately return true (if not logging)
-                if (log == TrackLogging.None)
-                    return true;
-                // -- Otherwise, return at the end. 
-                wasUpdated |= true;
-            }
-            return wasUpdated;
-        }
-        public virtual void Track(TrackSource source)
-        {
-            throw new Exception($"TrackerCollection can only be used for WasUpdated() on a group of objects. You need TrackerCollectionFull!");
-        }
-        public virtual void RefreshTracking()
-        {
-            throw new Exception($"TrackerCollection can only be used for WasUpdated() on a group of objects. You need TrackerCollectionFull!");
-        }
-    }
-
-    public class TrackerCollectionFull : TrackerCollection
-    {
+        public TrackingGroup() {}
         
         // -- Expected Type
         protected bool hasExpectedType = false;
@@ -103,18 +36,15 @@ namespace BetterEditor
         public bool isTracking { get; protected set; } = false;
         
         
-        // -- Constructor
-        //      - @ExpectedTypeIn: Optionally set an expected type for Collections that call .Track(), only used for
-        //              non-top-level collections that call .SetAsRelative()
-        public TrackerCollectionFull(System.Type expectedTypeIn)
-        {
-            SetExpectedType(expectedTypeIn);
-        }
-        public TrackerCollectionFull() {}
         
-        // ------------------------
-        //     ITrack Methods
-        // ------------------------
+        // -------------------------------
+        //     General Tracking Methods
+        // -------------------------------
+        public void SetExpectedType(System.Type expectedTypeIn)
+        {
+            expectedType = expectedTypeIn;
+            hasExpectedType = true;
+        }
         
         public void SetAsRelativeTracker(in string propNameIn, System.Type expectedTypeIn = null)
         {
@@ -126,12 +56,6 @@ namespace BetterEditor
             
             if (!hasExpectedType)
                 throw new Exception($"{GetType()}.SetAsRelativeTracker() called without expectedType! (You can also set this in the constructor!)");
-        }
-        
-        public void SetExpectedType(System.Type expectedTypeIn)
-        {
-            expectedType = expectedTypeIn;
-            hasExpectedType = true;
         }
         
         public bool IsTracking => isTracking;
@@ -146,10 +70,35 @@ namespace BetterEditor
             return isTopLevel ? "(Top Level)" : $"(Relative, {propName})";
         }
         
-        public override void Track(TrackSource source)
+        
+        // ------------------------
+        //     ITrack Methods
+        // ------------------------
+        public bool WasUpdated(TrackLogging log = TrackLogging.None)
         {
             // -- Check has Trackers
-            if (IsEmpty)
+            if (this.Any() == false)
+                throw new Exception($"{GetType()}.WasUpdated() called on empty collection! {GetLogStuff()}");
+            
+            return this.WasAnyUpdated(log);
+        }
+
+        // -- Propagate "Refresh" to all subTrackers
+        public void RefreshTracking()
+        {
+            
+            // -- Check has Trackers
+            if (this.Any() == false)
+                throw new Exception($"{GetType()}.RefreshTracking() called on empty collection! {GetLogStuff()}");
+            
+            foreach (var tracker in this)
+                tracker.RefreshTracking();
+        }
+        
+        public void Track(TrackSource source)
+        {
+            // -- Check has Trackers
+            if (this.Any() == false)
                 throw new Exception($"{GetType()}.Track() called on empty collection! {GetLogStuff()} {source.GetLogStuff()}");
             
             // -- There are actually 3 layers of hierarchy (or input) that can occur here.
@@ -182,7 +131,7 @@ namespace BetterEditor
                     throw new Exception($"{GetType()}.Track() Top-Level collection received a property, did you forget SetRelativePropName()?");
                 
                 // -- Do nothing, all of our children simply receive the source.
-                foreach (var tracker in subTrackers)
+                foreach (var tracker in this)
                     tracker.Track( source );
                 isTracking = true;
                 return;
@@ -206,17 +155,10 @@ namespace BetterEditor
                 
                 // -- Propagate "Track" to all subTrackers, using the found property (struct or class) as the relative Source
                 prop = foundProp;
-                foreach (var tracker in subTrackers)
+                foreach (var tracker in this)
                     tracker.Track( prop.AsSource() );
                 isTracking = true;
             }
-        }
-
-        // -- Propagate "Refresh" to all subTrackers
-        public override void RefreshTracking()
-        {
-            foreach (var tracker in subTrackers)
-                tracker.RefreshTracking();
         }
         
         
@@ -236,7 +178,7 @@ namespace BetterEditor
             {
                 
                 // -- Skip self and Collections
-                var isCollection = field.FieldType == typeof(TrackerCollectionFull);
+                var isCollection = field.FieldType == typeof(TrackingGroup);
                 if(isCollection && field.GetValue(obj) == this)
                     continue;
                 if(isCollection && !includeCollections)
@@ -255,7 +197,7 @@ namespace BetterEditor
         
         public void PopulateWithReflectionIfEmpty(object obj)
         {
-            if (IsEmpty)
+            if (this.Any() == false)
                 PopulateWithReflection(obj);
         }    
     }

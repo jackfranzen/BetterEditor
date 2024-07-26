@@ -143,6 +143,8 @@ namespace BetterEditor
         // -- Enforce Min/Max/Clamp Methods 
         //       -  IMPORTANT: Like with any serializedProperty.value setter, this will cause a property
         //                     representing mixed values to collapse to a single value if a change is made.
+        
+        // -- SAFE REPLACEMENT FOR value = Mathf.Min()! (prevents mixed values from collapsing to a single value!)
         public static void EnforceMinimum(this SerializedProperty prop, float min)
         {
             if (prop.IsNumber() == false)
@@ -152,6 +154,7 @@ namespace BetterEditor
                 prop.SetNumberValue(min);
         }
         
+        // -- SAFE REPLACEMENT FOR = Mathf.Max()! (prevents mixed values from collapsing to a single value!)
         public static void EnforceMaximum(this SerializedProperty prop, float max)
         {
             if (prop.IsNumber() == false)
@@ -160,6 +163,7 @@ namespace BetterEditor
                 prop.SetNumberValue(max);
         }
         
+        // -- SAFE REPLACEMENT FOR = Mathf.Clamp()! (prevents mixed values from collapsing to a single value!)
         public static void EnforceClamp(this SerializedProperty prop, float min, float max)
         {
             if (prop.IsNumber() == false)

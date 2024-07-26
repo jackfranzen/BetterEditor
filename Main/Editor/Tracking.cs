@@ -65,17 +65,44 @@ namespace BetterEditor
         }
     }
 
-    // -- Helpers to make it even cleaner
-    public static class SerializedTrackSourceExtensions
+    public static class TrackingHelperExtensions
     {
+        
+        // -- SERIALIZED-PROPERTY: Get as TrackSource quickly
         public static TrackSource AsSource(this SerializedProperty sProp)
         {
             return new TrackSource(sProp);
         }
+        
+        // -- SERIALIZED-OBJECT: Get as TrackSource quickly
         public static TrackSource AsSource(this SerializedObject sObject)
         {
             return new TrackSource(sObject);
         }
+
+        // -- IENUMERABLE<ITRACK>: WasUpdated
+        public static bool WasAnyUpdated(this IEnumerable<ITrack> trackersToCheck, TrackLogging log = TrackLogging.None)
+        {
+            if (!trackersToCheck.Any())
+                throw new Exception($"WasUpdated() called on an empty set!");
+
+            var wasUpdated = false;
+            foreach (var tracker in trackersToCheck)
+            {
+                // -- Skip if not updated
+                if (!tracker.WasUpdated(log))
+                    continue;
+                
+                // -- Immediately return true (if not logging)
+                if (log == TrackLogging.None)
+                    return true;
+                
+                // -- Otherwise, return at the end. 
+                wasUpdated = true;
+            }
+            return wasUpdated;
+        }
+
     }
     
     // -- ITrack allows for multiple layers of tracking, eventually arriving at a Tracker. 

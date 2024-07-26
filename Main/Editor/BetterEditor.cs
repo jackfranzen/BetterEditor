@@ -47,7 +47,7 @@ namespace BetterEditor
         private TargetClass target;
         private List<TargetClass> validTargets = new ();
         public SerializedObject serializedObject { get; private set; }
-        public TrackerCollectionFull CollectionFull { get; private set; } = new ();
+        public TrackingGroup GroupFull { get; private set; } = new ();
         public HashSet<SerializedObject> allSerializedObjects  { get; private set; } = new ();
 
         // -- Internal Getters
@@ -114,7 +114,7 @@ namespace BetterEditor
             {
                 // -- Find all changes to tracked serialized Properties, On tick!
                 var logMode = logAllTrackerUpdates ? TrackLogging.LogIfUpdated : TrackLogging.None;
-                var trackersUpdated = CollectionFull.WasUpdated(logMode);
+                var trackersUpdated = GroupFull.WasUpdated(logMode);
                 if (trackersUpdated && !logAllTrackerUpdates && logImporantFunctions)
                     Debug.Log("Better Editor: Detected Tracker Update");
 
@@ -175,7 +175,7 @@ namespace BetterEditor
             
             // -- Log full Tracker Update
             if(logAllTrackerUpdates)
-                CollectionFull.WasUpdated(TrackLogging.LogIfUpdated);
+                GroupFull.WasUpdated(TrackLogging.LogIfUpdated);
             
             // -- Perform User Update
             HandlePropertiesUpdatedAndDoFullRefresh(UpdateSource.User);
@@ -266,10 +266,10 @@ namespace BetterEditor
                 // -- Reset Tracker Arrays
                 allSerializedObjects.Clear();
                 allSerializedObjects.Add(serializedObject);
-                CollectionFull.Clear();
+                GroupFull.Clear();
                 
                 BuildTrackers.Invoke();
-                if (logImportantWarnings && CollectionFull.IsEmpty)
+                if (logImportantWarnings && GroupFull.Any() == false)
                     Debug.LogWarning("BetterEditor: BuildTrackers did not repopulate collection, can't detect automatically...");
             }
             else if (logImportantWarnings)

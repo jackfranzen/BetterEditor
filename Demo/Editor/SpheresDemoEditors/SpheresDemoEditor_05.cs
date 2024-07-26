@@ -15,26 +15,18 @@ namespace BetterEditorDemos
     {
         // -- Target Info
         private static readonly SpheresDemo_ColorData COLOR;
-        public TrackerCollectionFull CollectionFull = new (typeof(SpheresDemo_ColorData));
+        public TrackingGroup group = new (typeof(SpheresDemo_ColorData));
 
         // -- Trackers (Gathered via Reflection)
         public Tracker use = new(nameof(COLOR.use), SerializedPropertyType.Boolean);
         public Tracker color = new(nameof(COLOR.color));
         
-        // -- Constructor (Prepare the collection)
+        // -- Constructor (Prepare the group)
         public Color_TrackAndDraw_05 (string propName)
         {
-            CollectionFull.SetAsRelativeTracker(propName);
-            CollectionFull.PopulateWithReflection(this);
+            group.SetAsRelativeTracker(propName);
+            group.PopulateWithReflection(this);
         }
-
-        // -- [ITrack] Interface (just use the collection)
-        public void Track(TrackSource source)
-        {
-            CollectionFull.Track(source);
-        }
-        public bool WasUpdated(TrackLogging log = TrackLogging.None) { return CollectionFull.WasUpdated(log); }
-        public void RefreshTracking() { CollectionFull.RefreshTracking(); }
         
         // -- Draw Single Row (Alternate GUI Draw, good for 2 or 3 property classes)
         public void DrawSingleRow(GUIContent content = null)
@@ -43,7 +35,7 @@ namespace BetterEditorDemos
             // EditorGUILayout.ColorField(color.prop.GetGUIContent(), color.prop.colorValue, true, false, true);
             // EditorGUI.ColorField(color);
             
-            CollectionFull.CheckTracking();
+            group.CheckTracking();
             using (new EditorGUILayout.HorizontalScope())
             {
                 // -- Use BetterEditorGUI.ToggleRow to draw a row with a toggle on the left
@@ -55,57 +47,49 @@ namespace BetterEditorDemos
                 using (new EditorGUI.IndentLevelScope())
                 // using(new EditorGUILayout.HorizontalScope(GUILayout.Width(80))) // -- Wrap it one more time, because color-field likes to float right...
                     BetterEditorGUI.Property(color.prop, GUIContent.none);
-                
-                
             }
-            
         }
+
+        // -- [ITrack] Interface (just use the group)
+        public void Track(TrackSource source) { group.Track(source); }
+        public bool WasUpdated(TrackLogging log = TrackLogging.None) { return group.WasUpdated(log); }
+        public void RefreshTracking() { group.RefreshTracking(); }
     }
 
     public class SpheresDemo_TrackAndDraw_05 : ITrackAndDraw
     {
         // -- Target Info
         private static readonly SpheresDemo COMPONENT;
-        public TrackerCollectionFull CollectionFullAll = new ();
+        public TrackingGroup group = new ();
         
         // -- Trackers and Sub-Editors
         public Tracker enablePreviewTracker = new(nameof(COMPONENT.enablePreview));
         private Color_TrackAndDraw_05 previewColor = new( nameof(COMPONENT.previewColor) );
-        
         private Tracker seedTracker = new( nameof(COMPONENT.seed) );
         private Tracker radiusTracker = new( nameof(COMPONENT.radius) );
         private Tracker numSpheresTracker = new( nameof(COMPONENT.numResults) );
         private Color_TrackAndDraw_05 sphereColor = new( nameof(COMPONENT.sphereColor) );
         
-        // -- Extra Collections
-        public TrackerCollectionFull previewTrackers = new ();
-        public TrackerCollectionFull trackersWhichCauseModifications = new ();
+        // -- Tracker Collections (So we can check which category was updated)
+        public ITrack[] previewTrackers;
+        public ITrack[] importantTrackers;
         
         // -- Constructor
         public SpheresDemo_TrackAndDraw_05 ()
         {
-            // -- Get all (Non-TrackerCollection) ITrack objects via reflection (The 6 trackers and editors)
-            CollectionFullAll.PopulateWithReflection(this);
+            // -- Get all (Non-Group) ITrack objects via reflection (The 6 trackers and editors)
+            group.PopulateWithReflection(this);
 
-            // -- Get all Preview props
-            previewTrackers.Clear();
-            previewTrackers.Add(enablePreviewTracker);
-            previewTrackers.Add(previewColor);
-
-            // -- Get all Modify Props
-            trackersWhichCauseModifications.Add(seedTracker, radiusTracker, numSpheresTracker, sphereColor);
+            // -- Setup Collections for convenience
+            previewTrackers = new ITrack[] { enablePreviewTracker, previewColor };
+            importantTrackers = new ITrack[] { seedTracker, radiusTracker, numSpheresTracker, sphereColor };
         }
-        
-        // -- [ITrack] Interface (just use the collection)
-        public void Track(TrackSource source) { CollectionFullAll.Track(source); }
-        public bool WasUpdated(TrackLogging log = TrackLogging.None) { return CollectionFullAll.WasUpdated(log); }
-        public void RefreshTracking() { CollectionFullAll.RefreshTracking(); }
         
         // -- [IDraw] Draw the UI
         public void Draw(GUIContent mainContent)
         {
             // - Draws a copy+paste enabled foldout header, then DrawNoHeader() indented.
-            EditorGUILayout.PropertyField(CollectionFullAll.prop, mainContent);
+            EditorGUILayout.PropertyField(group.prop, mainContent);
             using (new EditorGUI.IndentLevelScope())
                 DrawNoHeader();
         }
@@ -113,8 +97,8 @@ namespace BetterEditorDemos
         // -- [IDraw] Draw the UI without the header
         public void DrawNoHeader()
         {
-            // -- Throw error if collection has not been given a tracking Property yet (using .TrackRelative())
-            CollectionFullAll.CheckTracking();
+            // -- Throw error if group has not been given a tracking Property yet (using .TrackRelative())
+            group.CheckTracking();
             
             // -- Draw Preview Props
             using(new IndentEditorLabelFieldScope("Preview Props:"))
@@ -140,6 +124,20 @@ namespace BetterEditorDemos
             
             // -- Enforce Ranges
             EnforceRanges();
+            
+            // -- Handle Preview Updated
+            //     (We can handle updates externally and internally (pretty much anywhere), as long as the element we're checking has been drawn)
+            if(enablePreviewTracker.WasUpdated())
+                HandlePreviewUpdated();
+        }
+        
+        private void HandlePreviewUpdated()
+        {
+            Debug.Log($"Better Editor Demo: EnablePreview updated to {enablePreviewTracker.prop.AnyTrue()} ");
+            
+            // -- Example: Set Color.use to false when preview is disabled
+            if (enablePreviewTracker.prop.AllFalse())
+                previewColor.use.prop.boolValue = false;
         }
 
         // -- Enforce Ranges
@@ -148,6 +146,11 @@ namespace BetterEditorDemos
             numSpheresTracker.prop.EnforceClamp(4, 100);
             seedTracker.prop.EnforceMinimum(0);
         }
+        
+        // -- [ITrack] Interface (just uses the group)
+        public void Track(TrackSource source) { group.Track(source); }
+        public bool WasUpdated(TrackLogging log = TrackLogging.None) { return group.WasUpdated(log); }
+        public void RefreshTracking() { group.RefreshTracking(); }
     }
     
 
@@ -185,8 +188,7 @@ namespace BetterEditorDemos
             // -- Update Serialized Object
             serializedObject.Update();
             
-            // -- Draw the modifications Row using the serialized property for hasModifications
-            //      (in this demo: hasModification updates are not part of the undo chain, undo will not revert them)
+            // -- Draw the modifications Row
             var pressedApply = SpheresDemoEditors.DrawModifyWarningRowSerialized(hasModificationsProp);
             if (pressedApply)
             {
@@ -194,32 +196,42 @@ namespace BetterEditorDemos
                 serializedObject.ApplyModifiedPropertiesWithoutUndo();
             }
             
-            // -- Draw the Editor twice, because we can!
+            // -- Draw the Editor
             componentEditor.DrawNoHeader();
             
+            var updatedImportant = componentEditor.importantTrackers.WasAnyUpdated(TrackLogging.LogIfUpdated);
+            if (updatedImportant)
+                HandleDetectModifications();
+            
             // -- Check (and Log) if anything was updated!
-            var updated_Any = componentEditor.trackersWhichCauseModifications.WasUpdated(TrackLogging.LogIfUpdated);
+            var updated_Any = componentEditor.WasUpdated(TrackLogging.LogIfUpdated);
             if (updated_Any)
             {
                 RefreshTracking();
-                
-                // - in this demo: hasModification updates are not part of the undo chain, undo will not revert to false)
-                serializedObject.ApplyModifiedProperties();
-                hasModificationsProp.boolValue = true;
-                serializedObject.ApplyModifiedPropertiesWithoutUndo();
             }
             
             // -- Apply!
             serializedObject.ApplyModifiedProperties();
         }
         
+        private void HandleDetectModifications()
+        {
+            Debug.Log($"Better Editor Demo: Detected Modifications!");
+            
+            //  In This Demo: hasModification updates are not part of the undo chain, undo will not revert them to false.
+            //      To accomplish this we apply any GUI updates first, regularly, then we push another silent update
+            serializedObject.ApplyModifiedProperties();
+            hasModificationsProp.boolValue = true;
+            serializedObject.ApplyModifiedPropertiesWithoutUndo();
+        }
+        
         
         // -- Info about this demo
         private static readonly SpheresDemoInfo Info = new()
         {
-            stage = ESpheresDemoStages.TrackAndDrawCollections,
-            title = "Reusable Editors: Collections and ITrackAndDraw",
-            description = "Uses ITrack interface and TrackerCollection to create reusable 'Mini-Editors'\n\n"+
+            stage = ESpheresDemoStages.UsingGroups,
+            title = "Reusable Editors: Groups and ITrackAndDraw",
+            description = "Uses ITrack interface and TrackerGroups to create reusable 'Mini-Editors'\n\n"+
                           "In this example, an ITrack class is created for ColorData and used twice.\n"+
                           "An ITrackAndDraw class is created for the component, which isn't necessary but can "+
                           "be compact and convenient, especially for future refactors",

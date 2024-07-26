@@ -33,20 +33,21 @@ namespace BetterEditorDemos
         private Tracker sphereColorUseTracker = new( nameof(COLORDATA.use) ); // -- relative to sphereColorProp
         private Tracker sphereColorColorTracker = new( nameof(COLORDATA.color) ); // -- relative to sphereColorProp
         
-        // -- Collections for Trackers
-        private TrackerCollectionFull allCollectionFull = new();
-        private TrackerCollectionFull previewPropCollectionFull = new();
-        private TrackerCollectionFull importantPropCollectionFull = new();
+        // -- Collection of all Trackers, gather automatically below
+        private TrackingGroup allTrackers = new();
+        
+        // -- Tracker Collections (So we can check which category was updated)
+        private Tracker[] previewTrackers;
+        private Tracker[] importantTrackers;
         
         public void OnEnable()
         {
-            // --  Get all Trackers 
-            //      (Technically gets more than that, see next step...)
-            allCollectionFull.PopulateWithReflection(this);
+            // -- Get ALL (Non-TrackingCollection) ITrack objects via reflection (The 8 trackers)
+            allTrackers.PopulateWithReflection(this);
             
-            // -- Setup Collections for convenience
-            previewPropCollectionFull.Set(previewColorUseTracker, previewColorColorTracker);
-            importantPropCollectionFull.Set(seedTracker, radiusTracker, numSpheresTracker, sphereColorUseTracker, sphereColorColorTracker);
+            // -- Setup Tracker Groups
+            previewTrackers = new Tracker[] {enablePreviewTracker, previewColorUseTracker, previewColorColorTracker};
+            importantTrackers = new Tracker[] {seedTracker, radiusTracker, numSpheresTracker, sphereColorUseTracker, sphereColorColorTracker};
 
             // -- Get Serialized Properties
             previewColorProp = serializedObject.FindPropertyChecked(nameof(DEMO.previewColor));
@@ -97,38 +98,55 @@ namespace BetterEditorDemos
             serializedObject.DrawDefaultEditor_NoUpdates();
             
             // -- Clamp the number of spheres using BetterEditor's Enforce methods
-            //  - Do NOT use .intValue = Mathf.Clamp()!!!
-            //          - It would cause the value to immediately collapse to a single value when selecting multiple
-            //            components with mixed Values! 
             numSpheresTracker.prop.EnforceClamp(4, 100);
             seedTracker.prop.EnforceMinimum(0);
             
-            // -- Example: Set seed to 0 when preview is disabled
-            if(enablePreviewTracker.WasUpdated())
-                if (enablePreviewTracker.prop.AnyTrue() == false)
-                    seedTracker.prop.intValue = 0;
             
-            // -- Check (and Log) if anything was updated!
-            var updated_Any = allCollectionFull.WasUpdated(TrackLogging.LogIfUpdated);
-            if (updated_Any)
-            {
-                // -- Apply any GUI and all serializedProperty value changes back to our target components
-                serializedObject.ApplyModifiedProperties();
-                
-                // -- Track that we have modifications
-                //      (in this demo: hasModification updates are not part of the undo chain, undo will not revert to false)
-                hasModificationsProp.boolValue = true;
-                serializedObject.ApplyModifiedPropertiesWithoutUndo();
-                
-                // -- Reset Trackers to current state, to detect changes from this point on
-                //      (Can re-track at any time, relative to applying changes)
+            // -- importantTrackers Modified?
+            //       - Using IEnumerable<ITrack>.WasAnyUpdated(), use any structure you'd like!
+            var modified_Important = importantTrackers.WasAnyUpdated( TrackLogging.LogIfUpdated);
+            
+            // -- Check (and Log) if anything was updated using our group
+            var anythingUpdated = allTrackers.WasUpdated( TrackLogging.LogIfUpdated);
+            
+            
+            // -- Handle Enable-Preview Updated
+            if (enablePreviewTracker.WasUpdated())
+                HandlePreviewUpdated();
+            
+            // -- Track that we have modifications
+            if (modified_Important)
+                HandleDetectModifications();
+            
+            // -- Refresh Tracking.
+            if(anythingUpdated)
                 RefreshTracking();
-            }
             
-            
-            // -- Backup, Apply any GUI changes to properties that might not have been tracked
-            //     (Note, it's okay to do this twice, it won't do anything if there aren't changes)
+            // -- (Regular Flow) Apply all changes made to our target components. 
             serializedObject.ApplyModifiedProperties();
+        }
+        
+        private void HandlePreviewUpdated()
+        {
+            Debug.Log($"Better Editor Demo: EnablePreview updated to {enablePreviewTracker.prop.AnyTrue()} ");
+            
+            // -- Expand or close the preview Color struct automatically when updating previewEnabled
+            previewColorProp.isExpanded = enablePreviewTracker.prop.AnyTrue();
+            
+            // -- Example: Set Color.use to false when preview is disabled
+            if (enablePreviewTracker.prop.AllFalse())
+                previewColorUseTracker.prop.boolValue = false;
+        }
+        
+        private void HandleDetectModifications()
+        {
+            Debug.Log($"Better Editor Demo: Detected Modifications!");
+            
+            //  In This Demo: hasModification updates are not part of the undo chain, undo will not revert them to false.
+            //      To accomplish this we apply any GUI updates first, regularly, then we push another silent update
+            serializedObject.ApplyModifiedProperties();
+            hasModificationsProp.boolValue = true;
+            serializedObject.ApplyModifiedPropertiesWithoutUndo();
         }
         
         

@@ -136,58 +136,53 @@ namespace BetterEditorDemos
             
              
             // -- DRAW THE MAIN UI
+            //      (Using all of our fancy new properties)
+            EditorGUILayout.LabelField("Preview Props:", EditorStyles.boldLabel);
+            EditorGUI.indentLevel += 1;
+            EditorGUILayout.HelpBox(SpheresDemoEditors.GizmosInfo, MessageType.Info);
+            EditorGUILayout.PropertyField(enablePreviewProp);
+            // -- Alternate to GUI.enabled from Unity
+            using (new EditorGUI.DisabledScope(enablePreviewProp.AllFalse()))
             {
-                EditorGUILayout.LabelField("Preview Props:", EditorStyles.boldLabel);
-                EditorGUI.indentLevel += 1;
-                EditorGUILayout.HelpBox(SpheresDemoEditors.GizmosInfo, MessageType.Info);
-                EditorGUILayout.PropertyField(enablePreviewProp);
-                // -- Alternate to GUI.enabled from Unity
-                using (new EditorGUI.DisabledScope(enablePreviewProp.AllFalse()))
-                {
-                    EditorGUILayout.PropertyField(previewColorProp, true);
-                }
-                EditorGUI.indentLevel -= 1;
-                
-                EditorGUILayout.LabelField("Distribution Props:", EditorStyles.boldLabel);
-                // -- Alternate to EditorGUI.IndentLevel += 1, from Unity
-                using( new EditorGUI.IndentLevelScope() )
-                {
-                    EditorGUILayout.PropertyField(seedProp, SeedsContent);
-                    EditorGUILayout.PropertyField(radiusProp);
-                }
-                
-                EditorGUILayout.LabelField("Spheres Props:", EditorStyles.boldLabel);
-                using (new EditorGUI.IndentLevelScope())
-                {
-                    foldoutExpanded = EditorGUILayout.Foldout(foldoutExpanded, ExampleFoldoutContent, true, EditorStyles.foldout);
-                    if (foldoutExpanded)
-                        using (new EditorGUI.IndentLevelScope())
-                        {
-                            EditorGUILayout.PropertyField(numSpheresProp);
-                            EditorGUILayout.PropertyField(sphereColorProp, true);
-                        }
-                }
-                
+                EditorGUILayout.PropertyField(previewColorProp, true);
+            }
+            EditorGUI.indentLevel -= 1;
+            
+            EditorGUILayout.LabelField("Distribution Props:", EditorStyles.boldLabel);
+            // -- Alternate to EditorGUI.IndentLevel += 1, from Unity
+            using( new EditorGUI.IndentLevelScope() )
+            {
+                EditorGUILayout.PropertyField(seedProp, SeedsContent);
+                EditorGUILayout.PropertyField(radiusProp);
+            }
+            
+            EditorGUILayout.LabelField("Spheres Props:", EditorStyles.boldLabel);
+            using (new EditorGUI.IndentLevelScope())
+            {
+                foldoutExpanded = EditorGUILayout.Foldout(foldoutExpanded, ExampleFoldoutContent, true, EditorStyles.foldout);
+                if (foldoutExpanded)
+                    using (new EditorGUI.IndentLevelScope())
+                    {
+                        EditorGUILayout.PropertyField(numSpheresProp);
+                        EditorGUILayout.PropertyField(sphereColorProp, true);
+                    }
             }
             
             // -- Clamp property limits using BetterEditor's Enforce methods
             numSpheresProp.EnforceClamp(4, 100);
             seedProp.EnforceMinimum(0);
-            //  - Do NOT use .intValue = Mathf.Clamp()!!!
-            //          - It would cause the value to immediately collapse to a single value when selecting multiple
-            //            components with mixed Values! 
             
-            
-            // -- Updated Preview Enabled?
-            //      (Note: These properties don't trigger HasModified, as they are automatically being drawn as a gizmo and don't indicate a change in data)
+            // -- Check for all Updates!
             var updated_previewEnabled = false;
             updated_previewEnabled |= prev_enablePreview != enablePreviewProp.boolValue;
             updated_previewEnabled |= prevMulti_enablePreview != enablePreviewProp.hasMultipleDifferentValues;
-            updated_previewEnabled |= prev_previewColorUse != previewColorUseProp.boolValue;
-            updated_previewEnabled |= prevMulti_previewColorUse != previewColorUseProp.hasMultipleDifferentValues;
-            updated_previewEnabled |= prev_previewColor != previewColorColorProp.colorValue;
-            updated_previewEnabled |= prevMulti_previewColor != previewColorColorProp.hasMultipleDifferentValues;
-            if(updated_previewEnabled)
+            
+            var updated_preview = updated_previewEnabled;
+            updated_preview |= prev_previewColorUse != previewColorUseProp.boolValue;
+            updated_preview |= prevMulti_previewColorUse != previewColorUseProp.hasMultipleDifferentValues;
+            updated_preview |= prev_previewColor != previewColorColorProp.colorValue;
+            updated_preview |= prevMulti_previewColor != previewColorColorProp.hasMultipleDifferentValues;
+            if(updated_preview)
                 Debug.Log($"Better Editor Demo: EnablePreview updated to {enablePreviewProp.AnyTrue()} ");
                 
             // -- Updated Distribution Props?
@@ -206,47 +201,59 @@ namespace BetterEditorDemos
             updated_spheres |= prev_colorDataColor != sphereColorColorProp.colorValue;
             updated_spheres |= prevMulti_colorDataColor != sphereColorColorProp.hasMultipleDifferentValues;
             
-            // -- Was PreviewEnabled Updated?
-            if (updated_previewEnabled)
-            {
-                // -- Why use AnyTrue() here?
-                //       - Even though user updates always collapse hasMultipleDifferentValues to false,
-                //              updates from undo could set it back to true.
-                //       - In later demos, we'll be able to have different reactions to undo vs user changes.  
-                
-                // -- Expand or close the preview Color struct automatically when updating previewEnabled
-                previewColorProp.isExpanded = enablePreviewProp.AnyTrue();
-                
-                Debug.Log($"Better Editor Demo: EnablePreview updated to {enablePreviewProp.AnyTrue()} ");
-                
-                // -- Example: Set Color.use to false when preview is disabled (bad UX, but for demo)
-                if (enablePreviewProp.AllFalse())
-                    previewColorUseProp.boolValue = false;
-            }
+            // -- Were Modifications made to important Properties?
+            var modified_Important = updated_distribution || updated_spheres;
             
-            
-            // -- Were important modifications (distribute or spheres) updated?
-            if (updated_distribution || updated_spheres)
-            {
-                
-                // -- Reset Trackers to current state, to detect changes from this point on
-                //      (Can re-track at any time, relative to applying changes)
-                RefreshTracking();
-                
-                // -- Apply any GUI and all serializedProperty value changes back to our target components
-                serializedObject.ApplyModifiedProperties();
+            // -- Was Anything Updated?
+            var updated_Any = updated_preview || updated_distribution || updated_spheres;
 
-                // -- Track that we have modifications
-                //      (in this demo: hasModification updates are not part of the undo chain, undo will not revert to false)
-                hasModificationsProp.boolValue = true;
-                serializedObject.ApplyModifiedPropertiesWithoutUndo();
-            }
+            // -- Handle Enable-Preview Updated
+            if (updated_previewEnabled)
+                HandlePreviewUpdated();
             
+            // -- Track that we have modifications
+            if (modified_Important)
+                HandleDetectModifications();
             
-            // -- Backup, Apply any GUI changes to properties that might not have been tracked
-            //      - For example, for any other or new properties on the component which aren't tracked
-            //      - It's okay to do this twice, it won't do anything if there aren't changes
+            // -- Refresh Tracking.
+            //      - We've had a chance to respond to updates, now we update them to current
+            //      - Calls to WasUpdated will now return false, until further updates are made
+            //      - We can do this before or after applying, no biggie. 
+            if (updated_Any)
+                RefreshTracking();
+            
+            // -- (Regular Flow) Apply all changes made to the serialized Object's properties (since Update()) back to our target components
+            //          (If we already applied changes from the block above then this will do nothing and that's okay)
             serializedObject.ApplyModifiedProperties();
+        }
+
+        
+        private void HandlePreviewUpdated()
+        {
+            // -- Why use AnyTrue() here?
+            //       - Even though user updates always collapse hasMultipleDifferentValues to false,
+            //              updates from undo could set it back to true.
+            //       - In later demos, we'll be able to have different reactions to undo vs user changes.  
+            Debug.Log($"Better Editor Demo: EnablePreview updated to {enablePreviewProp.AnyTrue()} ");
+            
+            // -- Expand or close the preview Color struct automatically when updating previewEnabled
+            previewColorProp.isExpanded = enablePreviewProp.AnyTrue();
+            
+            // -- Example: Set Color.use to false when preview is disabled
+            if (enablePreviewProp.AllFalse())
+                previewColorUseProp.boolValue = false;
+        }
+        
+        
+        private void HandleDetectModifications()
+        {
+            Debug.Log($"Better Editor Demo: Detected Modifications!");
+            
+            //  In This Demo: hasModification updates are not part of the undo chain, undo will not revert them to false.
+            //      To accomplish this we apply any GUI updates first, regularly, then we push another silent update
+            serializedObject.ApplyModifiedProperties();
+            hasModificationsProp.boolValue = true;
+            serializedObject.ApplyModifiedPropertiesWithoutUndo();
         }
         
         

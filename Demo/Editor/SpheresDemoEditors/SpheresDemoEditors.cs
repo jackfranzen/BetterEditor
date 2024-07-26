@@ -16,7 +16,7 @@ namespace BetterEditorDemos
         BasicSerialized = 2,
         FullSerialized = 3,
         BetterTrackers = 4,
-        TrackAndDrawCollections = 5,
+        UsingGroups = 5,
     }
 
     
@@ -108,7 +108,7 @@ namespace BetterEditorDemos
         
         public static SphereDemoInfo Demo_05 = new ()
         {
-            stage = ESpheresDemoStages.TrackAndDrawCollections,
+            stage = ESpheresDemoStages.UsingGroups,
             component = typeof(SpheresDemo_05),
         };
         
@@ -124,7 +124,7 @@ namespace BetterEditorDemos
                     return Demo_03;
                 case ESpheresDemoStages.BetterTrackers:
                     return Demo_04;
-                case ESpheresDemoStages.TrackAndDrawCollections:
+                case ESpheresDemoStages.UsingGroups:
                     return Demo_05;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(stage), stage, null);
