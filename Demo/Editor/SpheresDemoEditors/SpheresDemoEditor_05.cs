@@ -15,7 +15,7 @@ namespace BetterEditorDemos
     {
         // -- Target Info
         private static readonly SpheresDemo_ColorData COLOR;
-        public TrackingGroup group = new (typeof(SpheresDemo_ColorData));
+        public TrackerGroup group = new (typeof(SpheresDemo_ColorData));
 
         // -- Trackers (Gathered via Reflection)
         public Tracker use = new(nameof(COLOR.use), SerializedPropertyType.Boolean);
@@ -52,7 +52,7 @@ namespace BetterEditorDemos
 
         // -- [ITrack] Interface (just use the group)
         public void Track(TrackSource source) { group.Track(source); }
-        public bool WasUpdated(TrackLogging log = TrackLogging.None) { return group.WasUpdated(log); }
+        public bool WasUpdated(ETrackLog log = ETrackLog.None) { return group.WasUpdated(log); }
         public void RefreshTracking() { group.RefreshTracking(); }
     }
 
@@ -60,7 +60,7 @@ namespace BetterEditorDemos
     {
         // -- Target Info
         private static readonly SpheresDemo COMPONENT;
-        public TrackingGroup group = new ();
+        public TrackerGroup group = new ();
         
         // -- Trackers and Sub-Editors
         public Tracker enablePreviewTracker = new(nameof(COMPONENT.enablePreview));
@@ -149,7 +149,7 @@ namespace BetterEditorDemos
         
         // -- [ITrack] Interface (just uses the group)
         public void Track(TrackSource source) { group.Track(source); }
-        public bool WasUpdated(TrackLogging log = TrackLogging.None) { return group.WasUpdated(log); }
+        public bool WasUpdated(ETrackLog log = ETrackLog.None) { return group.WasUpdated(log); }
         public void RefreshTracking() { group.RefreshTracking(); }
     }
     
@@ -199,12 +199,12 @@ namespace BetterEditorDemos
             // -- Draw the Editor
             componentEditor.DrawNoHeader();
             
-            var updatedImportant = componentEditor.importantTrackers.WasAnyUpdated(TrackLogging.LogIfUpdated);
+            var updatedImportant = componentEditor.importantTrackers.WasAnyUpdated(ETrackLog.LogIfUpdated);
             if (updatedImportant)
                 HandleDetectModifications();
             
             // -- Check (and Log) if anything was updated!
-            var updated_Any = componentEditor.WasUpdated(TrackLogging.LogIfUpdated);
+            var updated_Any = componentEditor.WasUpdated(ETrackLog.LogIfUpdated);
             if (updated_Any)
             {
                 RefreshTracking();

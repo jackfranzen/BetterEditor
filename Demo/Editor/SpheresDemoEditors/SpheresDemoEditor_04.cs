@@ -34,7 +34,7 @@ namespace BetterEditorDemos
         private Tracker sphereColorColorTracker = new( nameof(COLORDATA.color) ); // -- relative to sphereColorProp
         
         // -- Collection of all Trackers, gather automatically below
-        private TrackingGroup allTrackers = new();
+        private TrackerGroup allTrackers = new();
         
         // -- Tracker Collections (So we can check which category was updated)
         private Tracker[] previewTrackers;
@@ -104,10 +104,10 @@ namespace BetterEditorDemos
             
             // -- importantTrackers Modified?
             //       - Using IEnumerable<ITrack>.WasAnyUpdated(), use any structure you'd like!
-            var modified_Important = importantTrackers.WasAnyUpdated( TrackLogging.LogIfUpdated);
+            var modified_Important = importantTrackers.WasAnyUpdated( ETrackLog.LogIfUpdated);
             
             // -- Check (and Log) if anything was updated using our group
-            var anythingUpdated = allTrackers.WasUpdated( TrackLogging.LogIfUpdated);
+            var anythingUpdated = allTrackers.WasUpdated( ETrackLog.LogIfUpdated);
             
             
             // -- Handle Enable-Preview Updated

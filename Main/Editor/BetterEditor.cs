@@ -47,7 +47,7 @@ namespace BetterEditor
         private TargetClass target;
         private List<TargetClass> validTargets = new ();
         public SerializedObject serializedObject { get; private set; }
-        public TrackingGroup GroupFull { get; private set; } = new ();
+        public TrackerGroup GroupFull { get; private set; } = new ();
         public HashSet<SerializedObject> allSerializedObjects  { get; private set; } = new ();
 
         // -- Internal Getters
@@ -113,7 +113,7 @@ namespace BetterEditor
             if (!hasNonstandardOp)
             {
                 // -- Find all changes to tracked serialized Properties, On tick!
-                var logMode = logAllTrackerUpdates ? TrackLogging.LogIfUpdated : TrackLogging.None;
+                var logMode = logAllTrackerUpdates ? ETrackLog.LogIfUpdated : ETrackLog.None;
                 var trackersUpdated = GroupFull.WasUpdated(logMode);
                 if (trackersUpdated && !logAllTrackerUpdates && logImporantFunctions)
                     Debug.Log("Better Editor: Detected Tracker Update");
@@ -175,7 +175,7 @@ namespace BetterEditor
             
             // -- Log full Tracker Update
             if(logAllTrackerUpdates)
-                GroupFull.WasUpdated(TrackLogging.LogIfUpdated);
+                GroupFull.WasUpdated(ETrackLog.LogIfUpdated);
             
             // -- Perform User Update
             HandlePropertiesUpdatedAndDoFullRefresh(UpdateSource.User);

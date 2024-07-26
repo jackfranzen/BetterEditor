@@ -10,17 +10,17 @@ using UnityEditor;
 namespace BetterEditor
 {
 
-    public class TrackingGroup : HashSet<ITrack>, ITrack
+    public class TrackerGroup : HashSet<ITrack>, ITrack
     {
         
         // -- Constructor
         //      - @ExpectedTypeIn: Optionally set an expected type for Collections that call .Track(), only used for
         //              non-top-level collections that call .SetAsRelative()
-        public TrackingGroup(System.Type expectedTypeIn)
+        public TrackerGroup(System.Type expectedTypeIn)
         {
             SetExpectedType(expectedTypeIn);
         }
-        public TrackingGroup() {}
+        public TrackerGroup() {}
         
         // -- Expected Type
         protected bool hasExpectedType = false;
@@ -74,12 +74,13 @@ namespace BetterEditor
         // ------------------------
         //     ITrack Methods
         // ------------------------
-        public bool WasUpdated(TrackLogging log = TrackLogging.None)
+        public bool WasUpdated(ETrackLog log = ETrackLog.None)
         {
             // -- Check has Trackers
             if (this.Any() == false)
                 throw new Exception($"{GetType()}.WasUpdated() called on empty collection! {GetLogStuff()}");
             
+            // -- Use the generic WasAnyUpdated() method. 
             return this.WasAnyUpdated(log);
         }
 
@@ -178,7 +179,7 @@ namespace BetterEditor
             {
                 
                 // -- Skip self and Collections
-                var isCollection = field.FieldType == typeof(TrackingGroup);
+                var isCollection = field.FieldType == typeof(TrackerGroup);
                 if(isCollection && field.GetValue(obj) == this)
                     continue;
                 if(isCollection && !includeCollections)
