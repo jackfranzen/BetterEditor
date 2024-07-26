@@ -19,41 +19,41 @@ namespace BetterEditor
         LogIfUpdated = 2,
     }
     
+    
     // -- TrackSource
     //     - Attempts to ease headaches between SerializedObject's.FindProperty() and
     //       SerializedProperty's.FindRelativeProperty().
     public struct TrackSource
     {
         public SerializedObject sObject;
-        public SerializedProperty parentProp;
-        public bool isRelative;
-
+        public SerializedProperty sParentProp;
+        public bool sourceIsObject;
         
+        
+        // -- Track from Object
+        //      @isTopLevelIn: If true, we are sending an Object into tracking
         public TrackSource(SerializedObject sObjectIn)
         {
             if (sObjectIn == null)
                 throw new Exception("SerializedObject provided to TrackSource was null");
+            sourceIsObject = true;
             sObject = sObjectIn;
-            parentProp = null;
-            isRelative = false;
+            sParentProp = null;
         }
-        public TrackSource(SerializedProperty parentPropIn)
+        public TrackSource(SerializedProperty sParentPropIn)
         {
-            if (parentPropIn == null)
+            if (sParentPropIn == null)
                 throw new Exception("SerializedProperty provided to TrackSource was null");
+            sourceIsObject = false;
             sObject = null;
-            parentProp = parentPropIn;
-            isRelative = true;
+            sParentProp = sParentPropIn;
         }
-        
-        public string LogName => isRelative ? parentProp.displayName : sObject.targetObject.GetType().Name;
-        
-        public System.Type GetType()
+
+        public string GetLogStuff()
         {
-            if(isRelative == false)
-                return sObject.targetObject.GetType();
-            throw new Exception("Need to somehow get Type from a prop representing a class/struct");
-            return null;
+            if (sourceIsObject)
+                return $"(TrackSource: object {sObject.targetObject.GetType().Name})";
+            return $"(TrackSource: property {sParentProp.displayName})";
         }
 
         public SerializedProperty FindProperty(in string propName)
@@ -61,14 +61,14 @@ namespace BetterEditor
             if (string.IsNullOrEmpty(propName))
                 throw new Exception("Cannot find a property without a name");
             
-            return isRelative ? parentProp.FindRelativeChecked(propName) : sObject.FindPropertyChecked(propName);
+            return sourceIsObject ? sObject.FindPropertyChecked(propName) : sParentProp.FindRelativeChecked(propName);
         }
     }
 
     // -- Helpers to make it even cleaner
     public static class SerializedTrackSourceExtensions
     {
-        public static TrackSource AsRelativeSource(this SerializedProperty sProp)
+        public static TrackSource AsSource(this SerializedProperty sProp)
         {
             return new TrackSource(sProp);
         }

@@ -417,10 +417,12 @@ namespace BetterEditor
             Rect rect = EditorGUILayout.GetControlRect(true, EditorGUIUtility.singleLineHeight);
             if (width > 0)
                 rect.width = width;
+            
+            // EditorGUI.DrawRect(rect, Color.cyan);
 
             // -- Property and Horizontal
             using (new EditorGUI.PropertyScope(rect, content, rowProp))
-            using (new EditorGUILayout.HorizontalScope())
+            using (new EditorGUILayout.HorizontalScope(GUILayout.Width(rect.width)))
             {
                 // -- Draw the Toggle
                 int indentOffset = indentLevel * 15; // -- Estimated Indent width

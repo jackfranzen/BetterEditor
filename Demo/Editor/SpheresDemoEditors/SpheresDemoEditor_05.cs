@@ -15,28 +15,35 @@ namespace BetterEditorDemos
     {
         // -- Target Info
         private static readonly SpheresDemo_ColorData COLOR;
-        public TrackerCollection collection = new (typeof(SpheresDemo_ColorData));
+        public TrackerCollectionFull CollectionFull = new (typeof(SpheresDemo_ColorData));
 
         // -- Trackers (Gathered via Reflection)
         public Tracker use = new(nameof(COLOR.use), SerializedPropertyType.Boolean);
         public Tracker color = new(nameof(COLOR.color));
         
         // -- Constructor (Prepare the collection)
-        public Color_TrackAndDraw_05(in string propNameIn)
+        public Color_TrackAndDraw_05 (string propName)
         {
-            collection.PopulateWithReflection(this);
-            collection.SetPropName(propNameIn);
+            CollectionFull.SetAsRelativeTracker(propName);
+            CollectionFull.PopulateWithReflection(this);
         }
 
         // -- [ITrack] Interface (just use the collection)
-        public void Track(TrackSource source) { collection.Track(source); }
-        public bool WasUpdated(TrackLogging log = TrackLogging.None) { return collection.WasUpdated(log); }
-        public void RefreshTracking() { collection.RefreshTracking(); }
+        public void Track(TrackSource source)
+        {
+            CollectionFull.Track(source);
+        }
+        public bool WasUpdated(TrackLogging log = TrackLogging.None) { return CollectionFull.WasUpdated(log); }
+        public void RefreshTracking() { CollectionFull.RefreshTracking(); }
         
         // -- Draw Single Row (Alternate GUI Draw, good for 2 or 3 property classes)
         public void DrawSingleRow(GUIContent content = null)
-        {  
-            collection.CheckTracking();
+        {
+            // EditorGUILayout.PropertyField(color.prop);
+            // EditorGUILayout.ColorField(color.prop.GetGUIContent(), color.prop.colorValue, true, false, true);
+            // EditorGUI.ColorField(color);
+            
+            CollectionFull.CheckTracking();
             using (new EditorGUILayout.HorizontalScope())
             {
                 // -- Use BetterEditorGUI.ToggleRow to draw a row with a toggle on the left
@@ -46,7 +53,10 @@ namespace BetterEditorDemos
                 // -- Inline "Color" prop (disabled if "Use" is false)
                 using (new EditorGUI.DisabledScope(use.prop.AllFalse()))
                 using (new EditorGUI.IndentLevelScope())
+                // using(new EditorGUILayout.HorizontalScope(GUILayout.Width(80))) // -- Wrap it one more time, because color-field likes to float right...
                     BetterEditorGUI.Property(color.prop, GUIContent.none);
+                
+                
             }
             
         }
@@ -56,44 +66,46 @@ namespace BetterEditorDemos
     {
         // -- Target Info
         private static readonly SpheresDemo COMPONENT;
-        public TrackerCollection collectionAll = new ( typeof(SpheresDemo) );
+        public TrackerCollectionFull CollectionFullAll = new ();
         
         // -- Trackers and Sub-Editors
         public Tracker enablePreviewTracker = new(nameof(COMPONENT.enablePreview));
-        private Color_TrackAndDraw_05 previewColor = new(nameof(COMPONENT.previewColor));
+        private Color_TrackAndDraw_05 previewColor = new( nameof(COMPONENT.previewColor) );
+        
         private Tracker seedTracker = new( nameof(COMPONENT.seed) );
         private Tracker radiusTracker = new( nameof(COMPONENT.radius) );
         private Tracker numSpheresTracker = new( nameof(COMPONENT.numResults) );
         private Color_TrackAndDraw_05 sphereColor = new( nameof(COMPONENT.sphereColor) );
         
         // -- Extra Collections
-        public TrackerCollection previewTrackers = new ();
-        public TrackerCollection trackersWhichCauseModifications = new ();
+        public TrackerCollectionFull previewTrackers = new ();
+        public TrackerCollectionFull trackersWhichCauseModifications = new ();
         
         // -- Constructor
-        public SpheresDemo_TrackAndDraw_05()
+        public SpheresDemo_TrackAndDraw_05 ()
         {
-            collectionAll.PopulateWithReflection(this);
-            
-            previewTrackers.Set(enablePreviewTracker, previewColor);
+            // -- Get all (Non-TrackerCollection) ITrack objects via reflection (The 6 trackers and editors)
+            CollectionFullAll.PopulateWithReflection(this);
 
-            trackersWhichCauseModifications.Clear();
-            trackersWhichCauseModifications.Add(seedTracker);
-            trackersWhichCauseModifications.Add(radiusTracker);
-            trackersWhichCauseModifications.Add(numSpheresTracker);
-            trackersWhichCauseModifications.Add(sphereColor);
+            // -- Get all Preview props
+            previewTrackers.Clear();
+            previewTrackers.Add(enablePreviewTracker);
+            previewTrackers.Add(previewColor);
+
+            // -- Get all Modify Props
+            trackersWhichCauseModifications.Add(seedTracker, radiusTracker, numSpheresTracker, sphereColor);
         }
         
         // -- [ITrack] Interface (just use the collection)
-        public void Track(TrackSource source) { collectionAll.Track(source); }
-        public bool WasUpdated(TrackLogging log = TrackLogging.None) { return collectionAll.WasUpdated(log); }
-        public void RefreshTracking() { collectionAll.RefreshTracking(); }
+        public void Track(TrackSource source) { CollectionFullAll.Track(source); }
+        public bool WasUpdated(TrackLogging log = TrackLogging.None) { return CollectionFullAll.WasUpdated(log); }
+        public void RefreshTracking() { CollectionFullAll.RefreshTracking(); }
         
         // -- [IDraw] Draw the UI
         public void Draw(GUIContent mainContent)
         {
             // - Draws a copy+paste enabled foldout header, then DrawNoHeader() indented.
-            EditorGUILayout.PropertyField(collectionAll.prop, mainContent);
+            EditorGUILayout.PropertyField(CollectionFullAll.prop, mainContent);
             using (new EditorGUI.IndentLevelScope())
                 DrawNoHeader();
         }
@@ -102,7 +114,7 @@ namespace BetterEditorDemos
         public void DrawNoHeader()
         {
             // -- Throw error if collection has not been given a tracking Property yet (using .TrackRelative())
-            collectionAll.CheckTracking();
+            CollectionFullAll.CheckTracking();
             
             // -- Draw Preview Props
             using(new IndentEditorLabelFieldScope("Preview Props:"))

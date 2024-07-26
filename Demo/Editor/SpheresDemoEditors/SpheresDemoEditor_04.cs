@@ -34,19 +34,19 @@ namespace BetterEditorDemos
         private Tracker sphereColorColorTracker = new( nameof(COLORDATA.color) ); // -- relative to sphereColorProp
         
         // -- Collections for Trackers
-        private TrackerCollection allCollection = new();
-        private TrackerCollection previewPropCollection = new();
-        private TrackerCollection importantPropCollection = new();
+        private TrackerCollectionFull allCollectionFull = new();
+        private TrackerCollectionFull previewPropCollectionFull = new();
+        private TrackerCollectionFull importantPropCollectionFull = new();
         
         public void OnEnable()
         {
             // --  Get all Trackers 
             //      (Technically gets more than that, see next step...)
-            allCollection.PopulateWithReflection(this);
+            allCollectionFull.PopulateWithReflection(this);
             
             // -- Setup Collections for convenience
-            previewPropCollection.Set(previewColorUseTracker, previewColorColorTracker);
-            importantPropCollection.Set(seedTracker, radiusTracker, numSpheresTracker, sphereColorUseTracker, sphereColorColorTracker);
+            previewPropCollectionFull.Set(previewColorUseTracker, previewColorColorTracker);
+            importantPropCollectionFull.Set(seedTracker, radiusTracker, numSpheresTracker, sphereColorUseTracker, sphereColorColorTracker);
 
             // -- Get Serialized Properties
             previewColorProp = serializedObject.FindPropertyChecked(nameof(DEMO.previewColor));
@@ -61,15 +61,15 @@ namespace BetterEditorDemos
         {
             // -- Preview Props
             enablePreviewTracker.Track(serializedObject.AsSource());
-            previewColorUseTracker.Track(previewColorProp.AsRelativeSource());
-            previewColorColorTracker.Track(previewColorProp.AsRelativeSource());
+            previewColorUseTracker.Track(previewColorProp.AsSource());
+            previewColorColorTracker.Track(previewColorProp.AsSource());
             
             // -- Important Props
             seedTracker.Track(serializedObject.AsSource());
             numSpheresTracker.Track(serializedObject.AsSource());
             radiusTracker.Track(serializedObject.AsSource());
-            sphereColorUseTracker.Track(sphereColorProp.AsRelativeSource()); 
-            sphereColorColorTracker.Track(sphereColorProp.AsRelativeSource());
+            sphereColorUseTracker.Track(sphereColorProp.AsSource()); 
+            sphereColorColorTracker.Track(sphereColorProp.AsSource());
         }
 
         // -- Unity->OnInspectorGUI
@@ -109,7 +109,7 @@ namespace BetterEditorDemos
                     seedTracker.prop.intValue = 0;
             
             // -- Check (and Log) if anything was updated!
-            var updated_Any = allCollection.WasUpdated(TrackLogging.LogIfUpdated);
+            var updated_Any = allCollectionFull.WasUpdated(TrackLogging.LogIfUpdated);
             if (updated_Any)
             {
                 // -- Apply any GUI and all serializedProperty value changes back to our target components
