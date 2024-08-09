@@ -14,12 +14,12 @@ namespace BetterEditorDemos
     
     // -- Separating out a "Mini-Editor" for 'SpheresDemo_ColorData' properties
     
-    //       - Ideally, this would be in it's own file, but for the demo it's here.
+    //       - Ideally, this would be in its own file, but for the demo it's here.
     //       - Most importantly, uses a "TrackerGroup"
     //          - Trackers are created for each property in `SpheresDemo_ColorData`
     //          - The group is created as a "RelativeTracker" and all Trackers are added to it
-    //          - Trackers are ideally added via reflection, to save typing when changing properties
-    //                of the target (SpheresDemo_ColorData)
+    //          - Trackers are ideally added via reflection, to save typing when adding/removing/updating properties 
+    //              in the target file.
     //       - Uses ITrack (an optional interface)
     //           - ITrack provides cleaner access to the group's core ITrack methods
     //                (Track, WasUpdated, RefreshTracking)
@@ -30,32 +30,38 @@ namespace BetterEditorDemos
         // -- Target Info
         private static readonly SpheresDemo_ColorData COLOR;
         public TrackerGroup group = new (typeof(SpheresDemo_ColorData));
+        private GUIContent content;
 
         // -- Trackers (Gathered via Reflection)
         public Tracker use = new(nameof(COLOR.use), SerializedPropertyType.Boolean);
         public Tracker color = new(nameof(COLOR.color));
         
         // -- Constructor (Prepare the group)
-        public Color_TrackAndDraw_05 (string propName)
+        public Color_TrackAndDraw_05 (string propName, GUIContent content = null)
         {
             group.SetAsRelativeTracker(propName);
             group.PopulateWithReflection(this);
+            this.content = content;
         }
         
         // -- Draw Single Row
         private static readonly GUIContent resetValueContent = new GUIContent("Value", "Right-click here to reset value in a prefab");
-        public void DrawSingleRow(GUIContent content = null)
+        public void DrawSingleRow()
         {
+            
             // -- Generally for a class/struct, I'd recommend using IDraw methods like below, with a standard foldout
             //      that can be copied and pasted. But because this is only two properties, I'm drawing it as a single row. 
             group.CheckTracking();
+            
+            // -- Get Content from the property if it hasn't been gathered or set yet (This could also be done in Track method)
+            content ??= group.prop.GetGUIContent();
             
             // -- Using some of the BetterEditorGUI functions, to compose a custom row. 
             //      - The serialized property representing the entire SpheresDemo_ColorData (group.prop) is used
             //         as the right-click target for the entire row, for revert
             BetterEditorGUI.DrawCustomRow(group.prop, (builder) =>
             {
-                BetterEditorGUI.LabelInRow(builder, color.prop.GetGUIContent());
+                BetterEditorGUI.LabelInRow(builder, content);
                 BetterEditorGUI.ToggleInRow(builder, use.prop);
                 if (!use.prop.AnyTrue())
                     return;
@@ -83,13 +89,19 @@ namespace BetterEditorDemos
         private static readonly SpheresDemo COMPONENT;
         public TrackerGroup group = new ();
         
+        // -- An extra content for the color override
+        private static GUIContent objectColorContent = new GUIContent("Override Color", "Override the first material's color with a custom color");
+        
         // -- Trackers and Sub-Editors
         public Tracker enablePreviewTracker = new(nameof(COMPONENT.enablePreview));
         private Color_TrackAndDraw_05 previewColor = new( nameof(COMPONENT.previewColor) ); // (defined above)
         private Tracker seedTracker = new( nameof(COMPONENT.seed) );
         private Tracker radiusTracker = new( nameof(COMPONENT.radius) );
-        private Tracker numSpheresTracker = new( nameof(COMPONENT.numResults) );
-        private Color_TrackAndDraw_05 sphereColor = new( nameof(COMPONENT.sphereColor) ); // (defined above)
+        private Tracker totalToGenerateTracker = new( nameof(COMPONENT.totalToGenerate) );
+        private ListTracker objectPrefabsTracker = new( nameof(COMPONENT.objectPrefabs) );
+        private Color_TrackAndDraw_05 objectColorTracker = new( nameof(COMPONENT.objectColor), objectColorContent); // (defined above)
+        
+        private SerializedProperty createdObjectsProp;
         
         // -- Tracker Collections (So we can check which category was updated)
         public ITrack[] previewTrackers;
@@ -104,7 +116,7 @@ namespace BetterEditorDemos
 
             // -- Setup Different collections to track changes to different sets of data
             previewTrackers = new ITrack[] { enablePreviewTracker, previewColor };
-            importantTrackers = new ITrack[] { seedTracker, radiusTracker, numSpheresTracker, sphereColor };
+            importantTrackers = new ITrack[] { seedTracker, radiusTracker, totalToGenerateTracker, objectPrefabsTracker, objectColorTracker };
         }
         
         // -- [IDraw] Draw the UI for the full component, with a foldout
@@ -123,24 +135,28 @@ namespace BetterEditorDemos
             group.CheckTracking();
             
             // -- Draw Preview Props
-            BetterEditorGUI.ToggleRow(enablePreviewTracker.prop, new GUIContent("Enable Preview"));
+            EditorGUILayout.PropertyField(enablePreviewTracker.prop, enablePreviewTracker.content);
             if(enablePreviewTracker.prop.AnyTrue())
                 using(new EditorGUI.IndentLevelScope())
                     previewColor.DrawSingleRow();
                 
-            // -- Draw Distribution Props
-            using(new IndentEditorLabelFieldScope("Distribution Props:"))
+            // -- Draw Zone Props
+            using(new IndentEditorLabelFieldScope("Primary Props:"))
             {
                 EditorGUILayout.PropertyField(seedTracker.prop);
+                EditorGUILayout.PropertyField(totalToGenerateTracker.prop);
                 EditorGUILayout.PropertyField(radiusTracker.prop);
             }
 
-            // -- Draw Spheres Props
-            using(new IndentEditorLabelFieldScope("Spheres Props:"))
+            // -- Draw Objects Props
+            using(new IndentEditorLabelFieldScope("Objects:"))
             {
-                EditorGUILayout.PropertyField(numSpheresTracker.prop);
-                sphereColor.DrawSingleRow();
+                objectColorTracker.DrawSingleRow();
+                BetterEditorGUI.ListPropertyField(objectPrefabsTracker.prop, objectPrefabsTracker.content, FontStyle.Normal, true);
             }
+            
+            using( new EditorGUI.DisabledScope(true))
+                EditorGUILayout.PropertyField(createdObjectsProp);
             
             // -- Enforce Ranges
             EnforceRanges();
@@ -163,12 +179,18 @@ namespace BetterEditorDemos
         // -- Enforce Ranges
         private void EnforceRanges()
         {
-            numSpheresTracker.prop.EnforceClamp(4, 100);
+            totalToGenerateTracker.prop.EnforceClamp(4, 100);
             seedTracker.prop.EnforceMinimum(0);
         }
         
-        // -- [ITrack] Interface (just uses the group)
-        public void Track(TrackSource source) { group.Track(source); }
+        // -- [ITrack] Interface
+        public void Track(TrackSource source)
+        {
+            group.Track(source);
+            
+            // -- example of setting up a traditional serialized property at the right time
+            createdObjectsProp = source.FindProperty(nameof(COMPONENT.createdObjects));
+        }
         public bool WasUpdated(ETrackLog log = ETrackLog.None) { return group.WasUpdated(log); }
         public void RefreshTracking() { group.RefreshTracking(); }
     }
@@ -211,14 +233,17 @@ namespace BetterEditorDemos
             var pressedApply = SpheresDemoEditors.DrawModifyWarningRowSerialized(hasModificationsProp);
             if (pressedApply)
             {
-                hasModificationsProp.boolValue = false;
-                serializedObject.ApplyModifiedPropertiesWithoutUndo();
+                // -- Do the actual logic to apply the changes
+                //       - In this demo, we're setting hasModifiedProperties to false directly in the objects code, it's easier
+                //          and we're done teaching how serialized properties work.
+                SpheresDemoEditors.Distribute(targets, true); 
             }
             
             // -- Draw the Editor
             componentEditor.DrawNoHeader();
-            
-            var updatedImportant = componentEditor.importantTrackers.WasAnyUpdated(ETrackLog.LogIfUpdated);
+
+            // -- Were important properties updated? (those that should trigger a "modifications detected" message)
+            var updatedImportant = componentEditor.importantTrackers.WasAnyUpdated();
             if (updatedImportant)
                 HandleDetectModifications();
             
@@ -252,10 +277,11 @@ namespace BetterEditorDemos
             title = "Reusable Editors: Groups and ITrackAndDraw",
             description = "Uses TrackerGroups and separate 'Mini-Editors'\n\n"+
                           "In this example, a separate class is created to track and draw ColorData, then used twice.\n"+
-                          "Similarly, a separate class is created to track/draw the full component, as an overcomplicated example",
+                          "Similarly, a separate class is created to track/draw the full component, as an example",
             greenTexts = new List<string>()
             {
-                "Define a single tracking layout for a given class or struct, with methods to draw it, forming a complete mini-editor!",
+                "Define a single tracking layout for a given class or struct, with methods to draw it, forming a complete mini-editor.",
+                "Use some of BetterEditor's GUI methods to compose a custom row",
             },
             redTexts = new List<string>()
             {

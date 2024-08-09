@@ -5,6 +5,7 @@ using BetterEditor;
 using UnityEditor;
 using UnityEngine;
 using Object = UnityEngine.Object;
+using Random = UnityEngine.Random;
 
 namespace BetterEditorDemos
 {
@@ -253,7 +254,10 @@ namespace BetterEditorDemos
             BetterEditorGUI.DrawBoxWithColor(Color.grey, dividerStyle);
             
             if (pressedApply)
+            {
                 hasModifications = false;
+                GUI.FocusControl(null);
+            }
 
             return updatedStage;
         }
@@ -274,20 +278,20 @@ namespace BetterEditorDemos
             else
                 hasModificationsText = $"({numObjects}) Component{s}";
             
-            
             var style = hasModifications.AnyTrue() ? ModificationsStyle : DemoHeaderStyle;
             
             // -- Draw a custom row with a button
             var pressedClear = false;
             EditorGUILayout.BeginHorizontal(GUILayout.Height(20));
             EditorGUILayout.LabelField(hasModificationsText, style, GUILayout.ExpandWidth(false));
-            GUI.enabled = hasModifications.AnyTrue();
             pressedClear = GUILayout.Button(new GUIContent("Apply"));
-            GUI.enabled = true;
             EditorGUILayout.EndHorizontal();
 
             // -- Divider
             BetterEditorGUI.DrawBoxWithColor(Color.grey, dividerStyle);
+            
+            if(pressedClear)
+                GUI.FocusControl(null);
             
             // -- Clear Modifications on object
             return pressedClear;
@@ -344,6 +348,16 @@ namespace BetterEditorDemos
                 }
             }
         }
+        
+        // -- Helper method to quickly call SpheresDemo.DistributeOnApply on a "Targets" Object list
+        public static void Distribute(IEnumerable<Object> objects, bool directSetHasModifications = false)
+        {
+            foreach (var obj in objects)
+                if (obj is SpheresDemo demo)
+                    demo.Distribute(directSetHasModifications);
+        }
+        
+        
 
 
     }

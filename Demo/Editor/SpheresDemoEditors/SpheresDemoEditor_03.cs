@@ -31,6 +31,8 @@ namespace BetterEditorDemos
         // -- We'll store modifications on the actual components now that we're experts at serialized properties
         //      (This will also keep our hasModifications up to date with our data when we use Undo/Redo, see other comments)
         private SerializedProperty hasModificationsProp;
+        
+        private SerializedProperty createdObjectsProp;
 
         // -- Trackers
         private bool prev_enablePreview = false;
@@ -76,14 +78,16 @@ namespace BetterEditorDemos
             radiusProp = serializedObject.FindPropertyChecked(nameof(DEMO.radius));
             
             // -- Spheres Props
-            numSpheresProp = serializedObject.FindPropertyChecked(nameof(DEMO.numResults));
-            sphereColorProp = serializedObject.FindPropertyChecked(nameof(DEMO.sphereColor));
-            sphereColorUseProp = sphereColorProp.FindRelativeChecked(nameof(DEMO.sphereColor.use)); // -- Relative
-            sphereColorColorProp = sphereColorProp.FindRelativeChecked(nameof(DEMO.sphereColor.color)); // -- Relative
+            numSpheresProp = serializedObject.FindPropertyChecked(nameof(DEMO.totalToGenerate));
+            sphereColorProp = serializedObject.FindPropertyChecked(nameof(DEMO.objectColor));
+            sphereColorUseProp = sphereColorProp.FindRelativeChecked(nameof(DEMO.objectColor.use)); // -- Relative
+            sphereColorColorProp = sphereColorProp.FindRelativeChecked(nameof(DEMO.objectColor.color)); // -- Relative
             
             // -- Find the protected hasModifications property by name, using BetterEditor's FindPropertyChecked for safety
             //          (It's a good idea to always use this method in place of FindProperty)
             hasModificationsProp = serializedObject.FindPropertyChecked("hasModifications");
+            
+            createdObjectsProp = serializedObject.FindPropertyChecked(nameof(DEMO.createdObjects));
             
             // -- Track!
             RefreshTracking();
@@ -130,6 +134,16 @@ namespace BetterEditorDemos
             var pressedApply = SpheresDemoEditors.DrawModifyWarningRowSerialized(hasModificationsProp);
             if (pressedApply)
             {
+                // -- Do the actual logic to apply the changes
+                SpheresDemoEditors.Distribute(targets);
+                
+                // -- Because the above method silently modifies the "createdObjects" property, we need to update our serializedObject again,
+                //      to ensure that the changes from other sources are respected and not overwritten or distorted by a follow-up apply
+                //          (When this line is removed, you will see "createdObjects" be destroyed when pressing Apply)
+                serializedObject.Update();
+                
+                // -- Set hasModifications to false, and silently apply it.
+                //      (in this demo: hasModification updates are not part of the undo chain, undo will not revert them)
                 hasModificationsProp.boolValue = false;
                 serializedObject.ApplyModifiedPropertiesWithoutUndo(); 
             }
@@ -167,6 +181,10 @@ namespace BetterEditorDemos
                         EditorGUILayout.PropertyField(sphereColorProp, true);
                     }
             }
+            
+            // -- draw our list of created objects
+            using( new EditorGUI.DisabledScope(true))
+                EditorGUILayout.PropertyField(createdObjectsProp);
             
             // -- Clamp property limits using BetterEditor's Enforce methods
             numSpheresProp.EnforceClamp(4, 100);

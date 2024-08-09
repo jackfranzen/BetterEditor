@@ -503,7 +503,9 @@ namespace BetterEditor
         public static void RectColorField(Rect rect, SerializedProperty sProp, GUIContent content = null, bool eyeDrop = true, bool alpha = false, bool hdr = false)
         {
             EditorGUI.BeginChangeCheck();
+            EditorGUI.showMixedValue = sProp.hasMultipleDifferentValues;
             var newValue = EditorGUI.ColorField(rect, content ?? GUIContent.none, sProp.colorValue, eyeDrop, alpha, hdr);
+            EditorGUI.showMixedValue = false;
             
             // -- Update Serialized when changed
             if (EditorGUI.EndChangeCheck())
@@ -514,14 +516,13 @@ namespace BetterEditor
         //      (also similar to EditorGUILayout.Toggle, but using a rect)
         public static void RectToggle(Rect toggleRect, SerializedProperty sProp, bool setTrueOnMixed = true)
         {
+            EditorGUI.BeginChangeCheck();
             EditorGUI.showMixedValue = sProp.hasMultipleDifferentValues;
-            var inVal = sProp.boolValue || sProp.hasMultipleDifferentValues;
-            var newVal = EditorGUI.Toggle(toggleRect, inVal);
+            EditorGUI.Toggle(toggleRect, sProp.boolValue);
             EditorGUI.showMixedValue = false;
-            var updated = newVal != inVal;
                 
             // -- Update Serialized when toggled
-            if (updated)
+            if (EditorGUI.EndChangeCheck())
             {
                 if(sProp.hasMultipleDifferentValues)
                     sProp.boolValue = setTrueOnMixed;

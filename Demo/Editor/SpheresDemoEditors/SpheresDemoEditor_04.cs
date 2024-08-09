@@ -19,6 +19,7 @@ namespace BetterEditorDemos
         private SerializedProperty previewColorProp;
         private SerializedProperty sphereColorProp;
         private SerializedProperty hasModificationsProp;
+        private SerializedProperty createdObjectsProp;
         
         // -- BetterEditor: SerializedTrackers for all properties
         //          (optionally, with property names predefined)
@@ -29,7 +30,7 @@ namespace BetterEditorDemos
         private Tracker seedTracker = new( nameof(DEMO.seed) );
         private Tracker radiusTracker = new( nameof(DEMO.radius) );
         
-        private Tracker numSpheresTracker = new( nameof(DEMO.numResults) );
+        private Tracker numSpheresTracker = new( nameof(DEMO.totalToGenerate) );
         private Tracker sphereColorUseTracker = new( nameof(COLORDATA.use) ); // -- relative to sphereColorProp
         private Tracker sphereColorColorTracker = new( nameof(COLORDATA.color) ); // -- relative to sphereColorProp
         
@@ -51,8 +52,10 @@ namespace BetterEditorDemos
 
             // -- Get Serialized Properties
             previewColorProp = serializedObject.FindPropertyChecked(nameof(DEMO.previewColor));
-            sphereColorProp = serializedObject.FindPropertyChecked(nameof(DEMO.sphereColor));
+            sphereColorProp = serializedObject.FindPropertyChecked(nameof(DEMO.objectColor));
             hasModificationsProp = serializedObject.FindPropertyChecked("hasModifications");
+            
+            createdObjectsProp = serializedObject.FindPropertyChecked(nameof(DEMO.createdObjects));
 
             // -- Track!
             RefreshTracking();
@@ -84,10 +87,19 @@ namespace BetterEditorDemos
             serializedObject.Update();
             
             // -- Draw the modifications Row using the serialized property for hasModifications
-            //      (in this demo: hasModification updates are not part of the undo chain, undo will not revert them)
             var pressedApply = SpheresDemoEditors.DrawModifyWarningRowSerialized(hasModificationsProp);
             if (pressedApply)
             {
+                // -- Do the actual logic to apply the changes
+                SpheresDemoEditors.Distribute(targets);
+                
+                // -- Because the above method silently modifies the "createdObjects" property, we need to update our serializedObject again,
+                //      to ensure that the changes from other sources are respected and not overwritten or distorted by a follow-up apply
+                //          (When this line is removed, you will see "createdObjects" be destroyed when pressing Apply)
+                serializedObject.Update();
+                
+                // -- Set hasModifications to false, and silently apply it.
+                //      (in this demo: hasModification updates are not part of the undo chain, undo will not revert them)
                 hasModificationsProp.boolValue = false;
                 serializedObject.ApplyModifiedPropertiesWithoutUndo();
             }
@@ -96,6 +108,10 @@ namespace BetterEditorDemos
             //        - Using BetterEditor's DrawDefaultEditor_NoUpdates to avoid sObject Update() and Apply()
             //        - (It's generally better to apply in a controlled manner after making any additional serialized val changes)
             serializedObject.DrawDefaultEditor_NoUpdates();
+            
+            // -- draw our list of created objects
+            using( new EditorGUI.DisabledScope(true))
+                EditorGUILayout.PropertyField(createdObjectsProp);
             
             // -- Clamp the number of spheres using BetterEditor's Enforce methods
             numSpheresTracker.prop.EnforceClamp(4, 100);
