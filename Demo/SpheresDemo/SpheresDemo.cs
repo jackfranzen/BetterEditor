@@ -9,7 +9,7 @@ namespace BetterEditorDemos
     [Serializable]
     public class SpheresDemo_ColorData
     {
-        public bool use = true;
+        public bool use = false;
         [FormerlySerializedAs("Color")] public Color color = Color.cyan;
     }
     

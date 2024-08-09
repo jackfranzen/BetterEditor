@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using BetterEditor;
 using BetterEditorDemos;
+using Unity.VisualScripting.YamlDotNet.Core.Tokens;
 using UnityEditor;
 using UnityEngine;
 
@@ -10,6 +11,19 @@ using UnityEngine;
 namespace BetterEditorDemos
 {
     
+    
+    // -- Separating out a "Mini-Editor" for 'SpheresDemo_ColorData' properties
+    
+    //       - Ideally, this would be in it's own file, but for the demo it's here.
+    //       - Most importantly, uses a "TrackerGroup"
+    //          - Trackers are created for each property in `SpheresDemo_ColorData`
+    //          - The group is created as a "RelativeTracker" and all Trackers are added to it
+    //          - Trackers are ideally added via reflection, to save typing when changing properties
+    //                of the target (SpheresDemo_ColorData)
+    //       - Uses ITrack (an optional interface)
+    //           - ITrack provides cleaner access to the group's core ITrack methods
+    //                (Track, WasUpdated, RefreshTracking)
+    //           - ITrack interface also allows this class to be gathered using reflection (show below)
     
     public class Color_TrackAndDraw_05 : ITrack
     {
@@ -28,34 +42,41 @@ namespace BetterEditorDemos
             group.PopulateWithReflection(this);
         }
         
-        // -- Draw Single Row (Alternate GUI Draw, good for 2 or 3 property classes)
+        // -- Draw Single Row
+        private static readonly GUIContent resetValueContent = new GUIContent("Value", "Right-click here to reset value in a prefab");
         public void DrawSingleRow(GUIContent content = null)
         {
-            // EditorGUILayout.PropertyField(color.prop);
-            // EditorGUILayout.ColorField(color.prop.GetGUIContent(), color.prop.colorValue, true, false, true);
-            // EditorGUI.ColorField(color);
-            
+            // -- Generally for a class/struct, I'd recommend using IDraw methods like below, with a standard foldout
+            //      that can be copied and pasted. But because this is only two properties, I'm drawing it as a single row. 
             group.CheckTracking();
-            using (new EditorGUILayout.HorizontalScope())
+            
+            // -- Using some of the BetterEditorGUI functions, to compose a custom row. 
+            //      - The serialized property representing the entire SpheresDemo_ColorData (group.prop) is used
+            //         as the right-click target for the entire row, for revert
+            BetterEditorGUI.DrawCustomRow(group.prop, (builder) =>
             {
-                // -- Use BetterEditorGUI.ToggleRow to draw a row with a toggle on the left
-                //      ("use" powers the toggle, but color is the copy-paste target)
-                BetterEditorGUI.ToggleRow(use.prop, color.prop, content ?? use.content, true, false, 150);
-                
-                // -- Inline "Color" prop (disabled if "Use" is false)
-                using (new EditorGUI.DisabledScope(use.prop.AllFalse()))
-                using (new EditorGUI.IndentLevelScope())
-                // using(new EditorGUILayout.HorizontalScope(GUILayout.Width(80))) // -- Wrap it one more time, because color-field likes to float right...
-                    BetterEditorGUI.Property(color.prop, GUIContent.none);
-            }
+                BetterEditorGUI.LabelInRow(builder, color.prop.GetGUIContent());
+                BetterEditorGUI.ToggleInRow(builder, use.prop);
+                if (!use.prop.AnyTrue())
+                    return;
+                using (new EditorGUI.DisabledScope(!use.prop.AnyTrue()))
+                    BetterEditorGUI.ColorInRow(builder, color.prop, -1);
+            });
         }
 
-        // -- [ITrack] Interface (just use the group)
+        // -- [ITrack] Interface methods, they just forward to the group. 
         public void Track(TrackSource source) { group.Track(source); }
         public bool WasUpdated(ETrackLog log = ETrackLog.None) { return group.WasUpdated(log); }
         public void RefreshTracking() { group.RefreshTracking(); }
     }
 
+    // -- Another "Mini-Editor" but this time, representing the component's full data.
+    //       - This is overcomplicating things here, but there are definitely situations where splitting 
+    //           an Editor into multiple mini-editors could be useful.
+    //       - Uses ITrackAndDraw (still optional) just a combination of ITrack and IDraw, adds
+    //           a Draw(GUIContent) and DrawNoHeader() method.
+    //       - This class shows how to draw a very standard copy+pastable foldout as expected for a
+    //           struct or class property (even though our target here is the full component....)
     public class SpheresDemo_TrackAndDraw_05 : ITrackAndDraw
     {
         // -- Target Info
@@ -64,11 +85,11 @@ namespace BetterEditorDemos
         
         // -- Trackers and Sub-Editors
         public Tracker enablePreviewTracker = new(nameof(COMPONENT.enablePreview));
-        private Color_TrackAndDraw_05 previewColor = new( nameof(COMPONENT.previewColor) );
+        private Color_TrackAndDraw_05 previewColor = new( nameof(COMPONENT.previewColor) ); // (defined above)
         private Tracker seedTracker = new( nameof(COMPONENT.seed) );
         private Tracker radiusTracker = new( nameof(COMPONENT.radius) );
         private Tracker numSpheresTracker = new( nameof(COMPONENT.numResults) );
-        private Color_TrackAndDraw_05 sphereColor = new( nameof(COMPONENT.sphereColor) );
+        private Color_TrackAndDraw_05 sphereColor = new( nameof(COMPONENT.sphereColor) ); // (defined above)
         
         // -- Tracker Collections (So we can check which category was updated)
         public ITrack[] previewTrackers;
@@ -77,19 +98,20 @@ namespace BetterEditorDemos
         // -- Constructor
         public SpheresDemo_TrackAndDraw_05 ()
         {
-            // -- Get all (Non-Group) ITrack objects via reflection (The 6 trackers and editors)
+            // -- Get all (Non-Group) ITrack objects via reflection (The 4 trackers and 2 Color_TrackAndDraw_05 ITrack objects)
+            //      (also, because this is an overcomplicated example and our target is the full serialized object, we don't set this group as relative)
             group.PopulateWithReflection(this);
 
-            // -- Setup Collections for convenience
+            // -- Setup Different collections to track changes to different sets of data
             previewTrackers = new ITrack[] { enablePreviewTracker, previewColor };
             importantTrackers = new ITrack[] { seedTracker, radiusTracker, numSpheresTracker, sphereColor };
         }
         
-        // -- [IDraw] Draw the UI
+        // -- [IDraw] Draw the UI for the full component, with a foldout
         public void Draw(GUIContent mainContent)
         {
-            // - Draws a copy+paste enabled foldout header, then DrawNoHeader() indented.
-            EditorGUILayout.PropertyField(group.prop, mainContent);
+            // - Draws a copy+paste enabled foldout header, then the inner "DrawNoHeader()" method, indented.
+            EditorGUILayout.PropertyField(group.prop, mainContent, false);
             using (new EditorGUI.IndentLevelScope())
                 DrawNoHeader();
         }
@@ -101,12 +123,10 @@ namespace BetterEditorDemos
             group.CheckTracking();
             
             // -- Draw Preview Props
-            using(new IndentEditorLabelFieldScope("Preview Props:"))
-            {
-                BetterEditorGUI.ToggleRow(enablePreviewTracker.prop, new GUIContent("Enable Preview"));
-                using (new EditorGUI.DisabledScope(enablePreviewTracker.prop.AllFalse()))
+            BetterEditorGUI.ToggleRow(enablePreviewTracker.prop, new GUIContent("Enable Preview"));
+            if(enablePreviewTracker.prop.AnyTrue())
+                using(new EditorGUI.IndentLevelScope())
                     previewColor.DrawSingleRow();
-            }
                 
             // -- Draw Distribution Props
             using(new IndentEditorLabelFieldScope("Distribution Props:"))
@@ -153,7 +173,6 @@ namespace BetterEditorDemos
         public void RefreshTracking() { group.RefreshTracking(); }
     }
     
-
 
 
     [CanEditMultipleObjects]
@@ -231,10 +250,9 @@ namespace BetterEditorDemos
         {
             stage = ESpheresDemoStages.UsingGroups,
             title = "Reusable Editors: Groups and ITrackAndDraw",
-            description = "Uses ITrack interface and TrackerGroups to create reusable 'Mini-Editors'\n\n"+
-                          "In this example, an ITrack class is created for ColorData and used twice.\n"+
-                          "An ITrackAndDraw class is created for the component, which isn't necessary but can "+
-                          "be compact and convenient, especially for future refactors",
+            description = "Uses TrackerGroups and separate 'Mini-Editors'\n\n"+
+                          "In this example, a separate class is created to track and draw ColorData, then used twice.\n"+
+                          "Similarly, a separate class is created to track/draw the full component, as an overcomplicated example",
             greenTexts = new List<string>()
             {
                 "Define a single tracking layout for a given class or struct, with methods to draw it, forming a complete mini-editor!",

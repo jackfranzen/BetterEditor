@@ -6,6 +6,7 @@ using System.Linq;
 using System.Reflection;
 using UnityEngine;
 using UnityEditor;
+using Random = UnityEngine.Random;
 
 namespace BetterEditor
 {
@@ -38,6 +39,7 @@ namespace BetterEditor
             EditorGUI.indentLevel -= 1;
         }
     }
+    
         
     // -- Center content in scope within a EditorGUILayout.BeginVertical() using GUILayout.FlexibleSpace()
     public class CenterVerticalScope : IDisposable
@@ -240,19 +242,11 @@ namespace BetterEditor
             FoldoutWrappedInner(foldoutProp, drawFunc, 2);
         }
 
-        public static void FoldoutWrappedInner(bool foldoutProp, DrawFoldoutInner drawFunc, in float space = 6)
+        private static void FoldoutWrappedInner(bool foldoutProp, DrawFoldoutInner drawFunc, in float space = 6)
         {
-            // -- If closed, don't draw content
-            if (foldoutProp == false)
-            {
-                GUILayout.Space(space);
-                return;
-            }
-            
-            // -- Draw Indented Content and space
-            EditorGUI.indentLevel += 1;
-            drawFunc();
-            EditorGUI.indentLevel -= 1;
+            if (foldoutProp)
+                using (new EditorGUI.IndentLevelScope())
+                    drawFunc();
             GUILayout.Space(space);
         }
 
@@ -392,64 +386,133 @@ namespace BetterEditor
             return Mathf.Approximately(numValues, property.GetNumberValue()) == false;
         }
         
+        // -----------------------
+        //   Custom Row Base
+        // ----------------------
         
-        
-        // -------------------
-        //   Toggle Methods
-        // -------------------
-        
-        
-        // -- ToggleRow():
-        //          - Very Similar to Unity's EditorGUILayout.PropertyField(bool) but with the toggle on the left side.
-        //          - Allows for longer names, easier access, better UX, and stuffing more data to the right of the label (see interactive mode toggle)
-        //          - [TODO] bring some of the logic from UI_Interactive here, and allow for a content function which takes the currentX.
-        
-        public static void ToggleRow(SerializedProperty sProp, GUIContent content, bool setTrueOnMixed = true, bool forceFalse = false, int width = -1)
+        public class RowBuilder
         {
-            ToggleRow(sProp, sProp, content, setTrueOnMixed, forceFalse, width);
-        }
-        public static void ToggleRow(SerializedProperty toggleProp, SerializedProperty rowProp, GUIContent content, bool setTrueOnMixed = true, bool forceFalse = false, int width = -1)
-        {
+            public float extraX = 0;
+            public int elements = 0;
+            public Rect startingRect;
 
-            // -- Start
-            var indentLevel = EditorGUI.indentLevel;
-            EditorGUI.indentLevel = 0;
-            Rect rect = EditorGUILayout.GetControlRect(true, EditorGUIUtility.singleLineHeight);
-            if (width > 0)
-                rect.width = width;
-            
-            // EditorGUI.DrawRect(rect, Color.cyan);
-
-            // -- Property and Horizontal
-            using (new EditorGUI.PropertyScope(rect, content, rowProp))
-            using (new EditorGUILayout.HorizontalScope(GUILayout.Width(rect.width)))
+            public RowBuilder(in Rect startingRect, float indent = 0)
             {
-                // -- Draw the Toggle
-                int indentOffset = indentLevel * 15; // -- Estimated Indent width
-                Rect toggleRect = new Rect(rect.x + indentOffset, rect.y, 15, rect.height);
-                //Rect toggleRect = new Rect(rect.x, rect.y, 15, rect.height);
+                extraX = indent * 15;
+                this.startingRect = startingRect;
+                //EditorGUI.DrawRect(startingRect, Color.red);
+            }
             
-                // -- If Property is null, draw a toggle forced to false
-                if (forceFalse) 
-                    EditorGUI.Toggle(toggleRect, false);
-                else
-                    RectToggle(toggleRect, toggleProp, setTrueOnMixed);
+            // -- Gets the next rectangle to draw in, given a width (And padding after the element)
+            //      - Use < 0 width to fill the remaining space. 
+            public Rect Next(in float width, in float pad = 5)
+            {
+                // -- Use remaining width if <= 0 provided, otherwise use the provided width (is reduced to remaining width if too large`)
+                var remaining = RemainingWidth();
+                var fillRow = width <= 0;
+                var usingWidth = fillRow ? remaining : Mathf.Min(width, remaining);
+                
+                // -- Check if we need front-padding
+                var rect = NextRect(usingWidth);
+                //EditorGUI.DrawRect(rect, new Color(0.5f, Random.Range(0.5f, 1f), 0.5f));
+                elements++;
+                extraX += rect.width;
+                
+                // -- Add padding if we have more room
+                if( !fillRow && RemainingWidth() > pad)
+                    extraX += pad;
+                
+                // -- Return the rect
+                return rect;
+            }
             
-    
-                // -- Draw Content in Label
-                Rect labelRect = new Rect(rect.x + 20 + indentOffset, rect.y, rect.width - 20, rect.height);
-                EditorGUI.LabelField(labelRect, content);
+            private Rect NextRect(in float width)
+            {
+                return new Rect(startingRect.x + extraX, startingRect.y, width, startingRect.height);
             }
 
-    
-            // -- Finish
-            EditorGUI.indentLevel = indentLevel;
+            public float RemainingWidth()
+            {
+                return startingRect.width - extraX;
+            }
         }
         
         
+        public delegate void CustomRowContentsFunc (RowBuilder builder);
+
+        public static void DrawCustomRow(SerializedProperty prop, CustomRowContentsFunc contentsFunc)
+        {
+            DrawCustomRow(prop, prop.GetGUIContent(), contentsFunc);
+        }
+        private static void DrawCustomRow(SerializedProperty prop, GUIContent tooltipContent, CustomRowContentsFunc contentsFunc)
+        {
+            // -- Start by saving indent, and unindenting to 0
+            //        (This prevents erroneous translations later for elements of the row)
+            var originalIndent = EditorGUI.indentLevel;
+            using (new EditorGUI.IndentLevelScope(-EditorGUI.indentLevel))
+            {
+                // -- Create a row builder for the current row, getting the rect
+                var rect = EditorGUILayout.GetControlRect(true, EditorGUIUtility.singleLineHeight);
+                var rowBuilder = new RowBuilder(rect, originalIndent);
+                
+                // -- Using the provided property as the right-click target
+                using (new EditorGUI.PropertyScope(rect, tooltipContent ?? prop.GetGUIContent(), prop))
+                    
+                // -- Create a horizontal row, then draw the user's elements via the contentsFunc 
+                using (new EditorGUILayout.HorizontalScope(GUILayout.Width(rect.width)))
+                    contentsFunc(rowBuilder);
+            }
+                
+        }
         
 
-        public static void RectToggle(Rect toggleRect, SerializedProperty sProp, bool setTrueOnMixed)
+        // -- Draw Content in Label
+        public static void LabelInRow(RowBuilder builder, GUIContent content, bool matchUnityLabelWidth = true, GUIStyle style = null)
+        {
+            // -- Default Style is label
+            style ??= EditorStyles.label;
+            
+            // -- Determine width from matchUnityLabelWidth:
+            //       (true) Unity's defined labelWidth (minus whatever we've drawn before it)
+            //       (false) The width of the text content
+            float usingWidth;
+            if (matchUnityLabelWidth)
+                usingWidth = EditorGUIUtility.labelWidth - builder.extraX;
+            else
+                usingWidth = style.CalcSize(content).x;
+            
+            var labelRect = builder.Next( usingWidth, 2); // (Important: 2 is fine-tuned here so that next element matches Unity)
+            EditorGUI.LabelField(labelRect, content);
+        }
+
+        public static void ColorInRow(RowBuilder builder, SerializedProperty sProp, float width = 80, bool eyeDrop = true, bool alpha = false, bool hdr = false)
+        {
+            var colorRect = builder.Next(width, 0);
+            RectColorField(colorRect, sProp, GUIContent.none, eyeDrop, alpha, hdr);
+        }
+        
+        public static void ToggleInRow(RowBuilder builder, SerializedProperty sProp, bool setTrueOnMixed = true)
+        {
+            var toggleRect = builder.Next(15, 3);
+            RectToggle(toggleRect, sProp, setTrueOnMixed);
+        }
+        
+        
+        // -- Similar to EditorGUI.ColorField, but based on a SerializedProperty
+        //      (also similar to EditorGUILayout.ColorField, but using a rect)
+        public static void RectColorField(Rect rect, SerializedProperty sProp, GUIContent content = null, bool eyeDrop = true, bool alpha = false, bool hdr = false)
+        {
+            EditorGUI.BeginChangeCheck();
+            var newValue = EditorGUI.ColorField(rect, content ?? GUIContent.none, sProp.colorValue, eyeDrop, alpha, hdr);
+            
+            // -- Update Serialized when changed
+            if (EditorGUI.EndChangeCheck())
+                sProp.colorValue = newValue;
+        }
+
+        // -- Similar to EditorGUI.Toggle, but based on a SerializedProperty
+        //      (also similar to EditorGUILayout.Toggle, but using a rect)
+        public static void RectToggle(Rect toggleRect, SerializedProperty sProp, bool setTrueOnMixed = true)
         {
             EditorGUI.showMixedValue = sProp.hasMultipleDifferentValues;
             var inVal = sProp.boolValue || sProp.hasMultipleDifferentValues;
@@ -466,6 +529,29 @@ namespace BetterEditor
                     sProp.boolValue = !sProp.boolValue;
             }
         }
+        
+        
+        // -----------------------
+        //   Custom Row Complete
+        // ----------------------
+
+        
+        // -- ToggleRow():
+        //          - Very Similar to Unity's EditorGUILayout.PropertyField(bool) but with the toggle on the left side.
+        //          - Allows for longer names, easier access, better UX, and stuffing more data to the right of the label
+
+        public static void ToggleRow(SerializedProperty toggle, GUIContent label, bool setTrueOnMixed = true, CustomRowContentsFunc contentsFunc = null)
+        {
+            DrawCustomRow(toggle, label, (RowBuilder builder) =>
+            {
+                ToggleInRow(builder, toggle, setTrueOnMixed);
+                LabelInRow(builder, label);
+                
+                // -- Option to draw more stuff
+                contentsFunc?.Invoke(builder);
+            });
+        }
+
 
     }
 }
