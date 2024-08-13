@@ -1,22 +1,38 @@
-A collection of tools to make Unity Editor work easier.
-Keep your components in-sync with your Editor class, using a SerializedProperty layer that makes reacting to changes a breeze!
-(Totally free and open source, MIT License or whatever)
+# What is BetterEditor?
 
-**Contents**
+### Demos for Editor Development
+- Shows how to create a feature complete, fully customized Editor for a component.
+- Responds to changes across complicated Undo/Redo/Revert/Reset operations.
 
- - **SerializedTracker**
-     - Easily track a SerializedProperty and check if it was updated later
- - **BetterEditor**
-     - An all-in-one object that can be added to any Editor (in tandem with trackers) to provide a rock-solid foundation for
-         issuing component updates based on tracker updates from all sources, including Undo/Redo/Paste/Revert Operations!
- - **RelativeTrackerCollection**
-     - Easily create a reusable Foldout-style "MiniEditor" for a single Struct or Class, powered by a single SerializedProperty
- - **SerializedExtensions**
-     - Adds a bunch of functionality to SerializedProperty and SerializedObject, like an object getter! 
- - **BetterEditorGUI**
-     - A collection of methods to help flesh out your editor components, like sliders without limits. This outside the [Range()]!
-    
- - [TODO] **Basic Demos**
-     - Examples of how to use the editor, using default Unity code.
- - [TODO] **Better Demos**
-     - Examples of how to use the editor if you're better than that. 
+### SerializedTrackers
+- Provides full information of exactly which properties have been updated and how.
+- Trackers completely replace SerializedProperties.
+- Adapts easily to changes in source component data-structure.
+- Trackers can be gathered via reflection, improving adaptability.
+
+### The BetterEditor Object
+- A complete framework for an Editor, calls methods at the correct times.
+- Provides a more reliable and adaptable ".targets" list.
+- Triggers a full refresh when the UnityEditor is hot-reloaded from script changes.
+- Informs whether updates are made from GUI, or undo/redo operations.
+- Additional options for Logging / Triggering full refreshes.
+
+### Quality of Life Extensions for SerializedProperty
+- Number and Boolean methods.
+- Safer Clamps/Min/Max via Enforce methods.
+- Automatic GUIContent generation (including [Tooltip] grabber).
+- ... and More.
+
+### BetterGUI
+- Provides missing "Serialized" GUI elements.
+- Provides a RowBuilder framework to compact multiple properties to a single row.
+- ... and More.
+
+### BetterUndo
+- Provides all of Unity's Undo methods with a `#if UNITY_EDITOR` preprocessor check.
+- BetterUndo.DestroyImmediate will safely call the runtime version of Object.DestroyImmediate instead.
+
+### BetterBookmark
+- A tagged "ScriptableObject" which can be located along with its folder path.
+- Useful for locating and loading assets (for editor use) without the use of /resource/ folders.
+- Useful for publishing addons like this one, and used to power the demos.
