@@ -13,12 +13,13 @@ namespace BetterEditor
     //        - A Tracker keeps a reference to the fully realized SerializedProperty "prop" (once Track() has been called)
     //        - A Tracker keeps a Reference to GUIContent (label + tooltip) for convenience. 
     //              (will auto-fill from [DisplayName()] and [Tooltip()] if provided)
-    public abstract class TrackerAbstract : ITrack
+    public abstract class TrackerAbstract : ITrack, IDisposable
     {
         // -- Props
         protected readonly string propName;
         public GUIContent content;
         public SerializedProperty prop {get; private set;}
+        public bool tracking { get; private set; } = false;
         
         // -- Constructors
         public TrackerAbstract( in string targetPropName, in GUIContent contentIn) : this(targetPropName)
@@ -30,15 +31,23 @@ namespace BetterEditor
             propName = targetPropName;
         }
         
-        // -- ITrack Methods
+        // -- [ITrack] Methods
         public void Track(TrackSource source)
         {
             // -- The end point for all tracking operations, we find our property from source 
             TrackDirect( source.FindProperty(propName) );
+            
+            tracking = true;
         }
-        public abstract bool WasUpdated(ETrackLog log = ETrackLog.None);
-        public abstract void RefreshTracking();
         
+        public bool WasUpdated(ETrackLog log = ETrackLog.None)
+        {
+            if (!tracking)
+                return false;
+            return WasUpdatedInternal(log);
+        }
+        
+        public abstract void RefreshTracking();
         
         // -- Internal Tracking
         public void TrackDirect(SerializedProperty sProp)
@@ -51,9 +60,26 @@ namespace BetterEditor
             content ??= prop.GetGUIContent();
             RefreshTracking();
         }
-
+        
+        public void StopTracking()
+        {
+            prop?.Dispose();
+            prop = null;
+            tracking = false;
+        }
+        
+        // -- Abstract Methods
+        public abstract bool WasUpdatedInternal(ETrackLog log = ETrackLog.None);
         protected abstract bool ValidFor(SerializedProperty sPropIn);
         protected abstract string InvalidMessage();
+        
+        // -- [IDisposable] Methods
+        public void Dispose()
+        {
+            if (tracking)
+                StopTracking();
+        }
+
     }
     
     public class Tracker : TrackerAbstract
@@ -81,7 +107,7 @@ namespace BetterEditor
         // -----------------------
         //    ITrack Methods
         // -----------------------
-        public override bool WasUpdated(ETrackLog log = ETrackLog.None)
+        public override bool WasUpdatedInternal(ETrackLog log = ETrackLog.None)
         {
             var wasUpdated = SerializedExtensionMethods.WasUpdated(prop, previousValue, previouslyMixed);
             if (log == ETrackLog.None) 
@@ -95,7 +121,8 @@ namespace BetterEditor
         }
         public override void RefreshTracking()
         {
-            
+            if (!tracking)
+                return;
             previousValue = prop.BetterObjectValue();
             previouslyMixed = prop.hasMultipleDifferentValues;
         }

@@ -18,6 +18,7 @@ namespace BetterEditorDemos
         FullSerialized = 3,
         BetterTrackers = 4,
         UsingGroups = 5,
+        UsingEverything = 6,
     }
 
     
@@ -113,6 +114,12 @@ namespace BetterEditorDemos
             component = typeof(SpheresDemo_05),
         };
         
+        public static SphereDemoInfo Demo_06 = new ()
+        {
+            stage = ESpheresDemoStages.UsingEverything,
+            component = typeof(SpheresDemo_06),
+        };
+        
         public static SphereDemoInfo DemoByEnum(ESpheresDemoStages stage)
         {
             switch (stage)
@@ -127,6 +134,8 @@ namespace BetterEditorDemos
                     return Demo_04;
                 case ESpheresDemoStages.UsingGroups:
                     return Demo_05;
+                case ESpheresDemoStages.UsingEverything:
+                    return Demo_06;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(stage), stage, null);
             }

@@ -20,7 +20,7 @@ namespace BetterEditor
         // -----------------------
         //    ITrack Methods
         // -----------------------
-        public override bool WasUpdated(ETrackLog log = ETrackLog.None)
+        public override bool WasUpdatedInternal(ETrackLog log = ETrackLog.None)
         {
             
             // -- This is unfortunate amount of work every tick! Too bad!

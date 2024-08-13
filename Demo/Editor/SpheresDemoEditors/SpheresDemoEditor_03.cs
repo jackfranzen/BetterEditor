@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using BetterEditor;
 using UnityEditor;
 using UnityEngine;
@@ -23,10 +24,12 @@ namespace BetterEditorDemos
         private SerializedProperty seedProp;
         private SerializedProperty radiusProp;
         
-        private SerializedProperty numSpheresProp;
-        private SerializedProperty sphereColorProp;
-        private SerializedProperty sphereColorUseProp;
-        private SerializedProperty sphereColorColorProp;
+        private SerializedProperty totalToGenerateProp;
+        private SerializedProperty overrideObjectColorProps;
+        private SerializedProperty overrideObjectColorUseProp;
+        private SerializedProperty overrideObjectColorColorProp;
+        
+        private SerializedProperty objectPrefabsProp;
         
         // -- We'll store modifications on the actual components now that we're experts at serialized properties
         //      (This will also keep our hasModifications up to date with our data when we use Undo/Redo, see other comments)
@@ -47,12 +50,15 @@ namespace BetterEditorDemos
         private float prev_radius = 1f;
         private bool prevMulti_radius = false;
         
-        private int prev_numSpheres = 0;
-        private bool prevMulti_numSpheres = false;
+        private int prev_totalToGen = 0;
+        private bool prevMulti_totalToGen = false;
         private bool prev_colorDataUse = false;
         private bool prevMulti_colorDataUse = false;
         private Color prev_colorDataColor = Color.cyan;
         private bool prevMulti_colorDataColor = false;
+
+        private object[] prev_objectPrefabs;
+        private bool prevMulti_objectPrefabs = false;
         
         
         // -- Tracks whether our artificial foldout is expanded
@@ -64,8 +70,8 @@ namespace BetterEditorDemos
         public void OnEnable()
         {
             // -- Build GUI Content
-            SeedsContent = new GUIContent("Seeds!!!", "Give me seeds!!");
-            ExampleFoldoutContent = new GUIContent("Example Foldout", "this is annoying, and also doesn't support right click copy/paste :(");
+            SeedsContent = new GUIContent("Seeds!!", "Give me seeds!! (Custom content override example)");
+            ExampleFoldoutContent = new GUIContent("Objects to Distribute", "This foldout is an example, a regular foldout will not support copy/paste :(");
             
             // -- Preview Props
             enablePreviewProp = serializedObject.FindPropertyChecked(nameof(DEMO.enablePreview));
@@ -75,13 +81,14 @@ namespace BetterEditorDemos
             
             // -- Distribution Props
             seedProp = serializedObject.FindPropertyChecked(nameof(DEMO.seed));
+            totalToGenerateProp = serializedObject.FindPropertyChecked(nameof(DEMO.totalToGenerate));
             radiusProp = serializedObject.FindPropertyChecked(nameof(DEMO.radius));
             
-            // -- Spheres Props
-            numSpheresProp = serializedObject.FindPropertyChecked(nameof(DEMO.totalToGenerate));
-            sphereColorProp = serializedObject.FindPropertyChecked(nameof(DEMO.objectColor));
-            sphereColorUseProp = sphereColorProp.FindRelativeChecked(nameof(DEMO.objectColor.use)); // -- Relative
-            sphereColorColorProp = sphereColorProp.FindRelativeChecked(nameof(DEMO.objectColor.color)); // -- Relative
+            // -- Object Props
+            overrideObjectColorProps = serializedObject.FindPropertyChecked(nameof(DEMO.objectColor));
+            overrideObjectColorUseProp = overrideObjectColorProps.FindRelativeChecked(nameof(DEMO.objectColor.use)); // -- Relative
+            overrideObjectColorColorProp = overrideObjectColorProps.FindRelativeChecked(nameof(DEMO.objectColor.color)); // -- Relative
+            objectPrefabsProp = serializedObject.FindPropertyChecked(nameof(DEMO.objectPrefabs));
             
             // -- Find the protected hasModifications property by name, using BetterEditor's FindPropertyChecked for safety
             //          (It's a good idea to always use this method in place of FindProperty)
@@ -111,12 +118,17 @@ namespace BetterEditorDemos
             prev_radius = radiusProp.floatValue;
             prevMulti_radius = radiusProp.hasMultipleDifferentValues;
             
-            prev_numSpheres = numSpheresProp.intValue;
-            prevMulti_numSpheres = numSpheresProp.hasMultipleDifferentValues;
-            prev_colorDataUse = sphereColorUseProp.boolValue;
-            prevMulti_colorDataUse = sphereColorUseProp.hasMultipleDifferentValues;
-            prev_colorDataColor = sphereColorColorProp.colorValue;
-            prevMulti_colorDataColor = sphereColorColorProp.hasMultipleDifferentValues;
+            prev_totalToGen = totalToGenerateProp.intValue;
+            prevMulti_totalToGen = totalToGenerateProp.hasMultipleDifferentValues;
+            prev_colorDataUse = overrideObjectColorUseProp.boolValue;
+            prevMulti_colorDataUse = overrideObjectColorUseProp.hasMultipleDifferentValues;
+            prev_colorDataColor = overrideObjectColorColorProp.colorValue;
+            prevMulti_colorDataColor = overrideObjectColorColorProp.hasMultipleDifferentValues;
+            
+            prev_objectPrefabs = new object[objectPrefabsProp.arraySize];
+            for (int i = 0; i < objectPrefabsProp.arraySize; i++)
+                prev_objectPrefabs[i] = objectPrefabsProp.GetArrayElementAtIndex(i).BetterObjectValue();
+            prevMulti_objectPrefabs = objectPrefabsProp.hasMultipleDifferentValues;
         }
         
 
@@ -151,7 +163,7 @@ namespace BetterEditorDemos
              
             // -- DRAW THE MAIN UI
             //      (Using all of our fancy new properties)
-            EditorGUILayout.LabelField("Preview Props:", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("Primary Props", EditorStyles.boldLabel);
             EditorGUI.indentLevel += 1;
             EditorGUILayout.HelpBox(SpheresDemoEditors.GizmosInfo, MessageType.Info);
             EditorGUILayout.PropertyField(enablePreviewProp);
@@ -167,27 +179,24 @@ namespace BetterEditorDemos
             using( new EditorGUI.IndentLevelScope() )
             {
                 EditorGUILayout.PropertyField(seedProp, SeedsContent);
+                EditorGUILayout.PropertyField(totalToGenerateProp);
                 EditorGUILayout.PropertyField(radiusProp);
             }
             
-            EditorGUILayout.LabelField("Spheres Props:", EditorStyles.boldLabel);
-            using (new EditorGUI.IndentLevelScope())
-            {
-                foldoutExpanded = EditorGUILayout.Foldout(foldoutExpanded, ExampleFoldoutContent, true, EditorStyles.foldout);
-                if (foldoutExpanded)
-                    using (new EditorGUI.IndentLevelScope())
-                    {
-                        EditorGUILayout.PropertyField(numSpheresProp);
-                        EditorGUILayout.PropertyField(sphereColorProp, true);
-                    }
-            }
+            foldoutExpanded = EditorGUILayout.Foldout(foldoutExpanded, ExampleFoldoutContent, true, EditorStyles.foldout);
+            if (foldoutExpanded)
+                using (new EditorGUI.IndentLevelScope())
+                {
+                    EditorGUILayout.PropertyField(overrideObjectColorProps, true);
+                    EditorGUILayout.PropertyField(objectPrefabsProp, true);
+                }
             
             // -- draw our list of created objects
             using( new EditorGUI.DisabledScope(true))
-                EditorGUILayout.PropertyField(createdObjectsProp);
+                EditorGUILayout.PropertyField(createdObjectsProp); 
             
             // -- Clamp property limits using BetterEditor's Enforce methods
-            numSpheresProp.EnforceClamp(4, 100);
+            totalToGenerateProp.EnforceClamp(4, 100);
             seedProp.EnforceMinimum(0);
             
             // -- Check for all Updates!
@@ -207,23 +216,32 @@ namespace BetterEditorDemos
             var updated_distribution = false;
             updated_distribution |= prev_seed != seedProp.intValue;
             updated_distribution |= prevMulti_seed != seedProp.hasMultipleDifferentValues;
-            updated_distribution |= prev_radius != radiusProp.floatValue;
+            updated_distribution |= prev_totalToGen != totalToGenerateProp.intValue;
+            updated_distribution |= prevMulti_totalToGen != totalToGenerateProp.hasMultipleDifferentValues;
+            updated_distribution |= (Mathf.Approximately(prev_radius, radiusProp.floatValue) == false);
             updated_distribution |= prevMulti_radius != radiusProp.hasMultipleDifferentValues;
             
-            // -- Updated Spheres Props?
-            var updated_spheres = false;
-            updated_spheres |= prev_numSpheres != numSpheresProp.intValue;
-            updated_spheres |= prevMulti_numSpheres != numSpheresProp.hasMultipleDifferentValues;
-            updated_spheres |= prev_colorDataUse != sphereColorUseProp.boolValue;
-            updated_spheres |= prevMulti_colorDataUse != sphereColorUseProp.hasMultipleDifferentValues;
-            updated_spheres |= prev_colorDataColor != sphereColorColorProp.colorValue;
-            updated_spheres |= prevMulti_colorDataColor != sphereColorColorProp.hasMultipleDifferentValues;
+            // -- Updated Object Props?
+            var updated_objects = false;
+            updated_objects |= prev_colorDataUse != overrideObjectColorUseProp.boolValue;
+            updated_objects |= prevMulti_colorDataUse != overrideObjectColorUseProp.hasMultipleDifferentValues;
+            updated_objects |= prev_colorDataColor != overrideObjectColorColorProp.colorValue;
+            updated_objects |= prevMulti_colorDataColor != overrideObjectColorColorProp.hasMultipleDifferentValues;
+            
+            // -- Check the list against the previous list
+            //         (You can do any sort of array comparison, but fundamentally this is what BetterTrackers use internally, when we get to them)
+            var currentValues = new object[objectPrefabsProp.arraySize];
+            for (int i = 0; i < objectPrefabsProp.arraySize; i++)
+                currentValues[i] = objectPrefabsProp.GetArrayElementAtIndex(i).BetterObjectValue();
+            updated_objects |= (prev_objectPrefabs.SequenceEqual(currentValues) == false);
+            updated_objects |= prevMulti_objectPrefabs != objectPrefabsProp.hasMultipleDifferentValues;
+            
             
             // -- Were Modifications made to important Properties?
-            var modified_Important = updated_distribution || updated_spheres;
+            var modified_Important = updated_distribution || updated_objects;
             
             // -- Was Anything Updated?
-            var updated_Any = updated_preview || updated_distribution || updated_spheres;
+            var updated_Any = updated_preview || updated_distribution || updated_objects;
 
             // -- Handle Enable-Preview Updated
             if (updated_previewEnabled)

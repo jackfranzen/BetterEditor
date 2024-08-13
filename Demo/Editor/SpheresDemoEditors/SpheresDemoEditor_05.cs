@@ -1,8 +1,5 @@
-using System;
 using System.Collections.Generic;
 using BetterEditor;
-using BetterEditorDemos;
-using Unity.VisualScripting.YamlDotNet.Core.Tokens;
 using UnityEditor;
 using UnityEngine;
 
@@ -141,7 +138,7 @@ namespace BetterEditorDemos
                     previewColor.DrawSingleRow();
                 
             // -- Draw Zone Props
-            using(new IndentEditorLabelFieldScope("Primary Props:"))
+            using(new IndentEditorLabelFieldScope("Primary Props"))
             {
                 EditorGUILayout.PropertyField(seedTracker.prop);
                 EditorGUILayout.PropertyField(totalToGenerateTracker.prop);
@@ -149,7 +146,7 @@ namespace BetterEditorDemos
             }
 
             // -- Draw Objects Props
-            using(new IndentEditorLabelFieldScope("Objects:"))
+            using(new IndentEditorLabelFieldScope("Objects to Distribute"))
             {
                 objectColorTracker.DrawSingleRow();
                 BetterEditorGUI.ListPropertyField(objectPrefabsTracker.prop, objectPrefabsTracker.content, FontStyle.Normal, true);

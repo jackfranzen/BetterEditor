@@ -1,7 +1,5 @@
 using System.Collections.Generic;
-using BetterEditor;
 using UnityEditor;
-using UnityEngine;
 
 namespace BetterEditorDemos
 {
@@ -16,10 +14,9 @@ namespace BetterEditorDemos
         // -- Track updates
         //      (We're only tracking in the editor, so clear this state if we change selection)
         private bool hasModifications = false;
-        private void ClearModifications() => hasModifications = false;
         public void OnEnable()
         {
-            ClearModifications();
+            hasModifications = false;
         }
         
         
@@ -47,8 +44,6 @@ namespace BetterEditorDemos
             // -- Finish the change check
             hasModifications |= EditorGUI.EndChangeCheck();
         }
-        
-        
         
         
         // -- Info about this demo

@@ -32,9 +32,24 @@ namespace BetterEditor
             return EditorGUI.EndChangeCheck();
         }
         
-        // -------------------------------------
-        //      Find Properties with Check
-        // -------------------------------------
+        // ---------------------------------------
+        //      Core Serialized Object Methods
+        // ----------------------------------------
+        
+        public static void ApplyIfModified(this SerializedObject sObject)
+        {
+            // -- One would assume this is the default behavior of ApplyModifiedProperties(), but it is not.
+            // -- There are cases where ApplyModifiedProperties() will throw errors when attempting to apply changes
+            //          to a SerializedObject containing recently deleted objects, even though no relevant changes
+            //          actually occured, so this helps smooth over these cases. 
+            
+            if (sObject.hasModifiedProperties)
+                sObject.ApplyModifiedProperties();
+        }
+        
+        // --------------------------------------------
+        //      Find Properties with Checks/Errors
+        // --------------------------------------------
         
         public static SerializedProperty FindPropertyChecked(this SerializedObject sObject, in string name)
         {
@@ -60,7 +75,7 @@ namespace BetterEditor
         }
         
         // -------------------------------------
-        //      Number
+        //      Serialized Prop: Number
         // -------------------------------------
         
         public static bool IsNumber(this SerializedProperty prop)
@@ -109,7 +124,7 @@ namespace BetterEditor
         
 
         // -------------------------------------
-        //      Boolean
+        //      Serialized Prop: Boolean
         // -------------------------------------
         
         // -- Why use these methods?
