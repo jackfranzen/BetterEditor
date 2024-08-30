@@ -1,0 +1,80 @@
+
+# What is BetterEditor?
+
+### Demos for Editor Development
+- Shows how to create a feature complete, fully customized Editor for a component.
+- Responds to changes across complicated Undo/Redo/Revert/Reset operations.
+
+### SerializedTrackers
+- Provides full information of exactly which properties have been updated and how.
+- Trackers completely replace SerializedProperties.
+- Adapts easily to changes in source component data-structure.
+- Trackers can be gathered via reflection, improving adaptability.
+
+### The BetterEditor Object
+- A complete framework for an Editor, calls methods at the correct times.
+- Provides a more reliable and adaptable ".targets" list.
+- Triggers a full refresh when the UnityEditor is hot-reloaded from script changes.
+- Informs whether updates are made from GUI, or undo/redo operations.
+- Additional options for Logging / Triggering full refreshes.
+
+### Quality of Life Extensions for SerializedProperty
+- Number and Boolean methods.
+- Safer Clamps/Min/Max via Enforce methods.
+- Automatic GUIContent generation (including [Tooltip] grabber).
+- ... and More.
+
+### BetterGUI
+- Provides missing "Serialized" GUI elements.
+- Provides a RowBuilder framework to compact multiple properties to a single row.
+- ... and More.
+
+### BetterUndo
+- Provides all of Unity's Undo methods with a `#if UNITY_EDITOR` preprocessor check.
+- BetterUndo.DestroyImmediate will safely call the runtime version of Object.DestroyImmediate instead.
+
+### BetterBookmark
+- A tagged "ScriptableObject" which can be located along with its folder path.
+- Useful for locating and loading assets (for editor use) without the use of /resource/ folders.
+- Useful for publishing addons like this one, and used to power the demos.
+
+	  
+	  
+	  
+"This is an introduction to developing with Unity's Editor and Editor GUI classes, which allows one to build tools
+and fully customized, powerful inspectors, for use within the Unity Editor. Everything shown in the video is available in the distribution demo scene provided with the BetterEditor library, which was designed to ease some of the headaches we'll surely encounter.
+
+Throughout the video, we'll be developing a fully-customized Inspector, known as an Editor, for a demo component. The demo component creates and distributes objects in a radius, when triggered from the Editor. The editor behaves exactly as you would expect; Differences between multiple objects (or variations from a prefab definition) are clearly marked. This editor utilizes a reusable custom row which holds both a boolean and color, and that row can be copied and pasted in full. But most importantly, the editor in this demo is able to detect changes to individidual properties across all possible operations, of which there are five (and probably more)
+      1. Basic GUI interaction
+	  2. Copy+Paste
+	  3. Revert
+	  4. Reset
+	  5. and Undo+Redo
+When changes to "important" properties occur from any of these operations, the editor shows that the distribution is out of date and that it needs to be reapplied. On top of all of this, Undos and Redos are handled correctly. 
+
+That may sound like a lot, but we'll be working up to that goal in stages and covering all of the fundamentals along the way. To this effect, the components in the Demo scene include a drop-down to swap between six stages of complexity. The first stage is as simple as an Editor can get and doesn't contain much functionality, while the 6th stage has all of the functionality. The respective CS files can be opened as well, and they contain enough comments to replace this entire video.
+
+In the later stages, this demo makes heavy use of the Better Editor library. SerializedProperties are replaced with BetterEditor's SerializedTrackers, to track updates to individual properties and provide flexibility. We'll use many of BetterEditor's Serialized extension methods to make working with Properties easier. We'll use BetterEditor's GUI methods and Row-Builder to create a custom row. In the final step, the BetterEditor object is employed, which acts a framework for an Editor and provides some nifty features.   
+
+
+-- The Component -- 
+
+To begin, let's quickly look at our component or Monobehaviour. Through some internal magic, this component is reused as the target for all 6 Editors in the demo. This component defines a few "preview" properties, which control a gizmo visualizing the radius. There are also properties which modify the distribution, such as the seed, a list of objects to distribute, and a color override. 
+
+
+The two color properties are of the same type, "???", which is a class that simply contains a boolean and a color.
+
+-- Stage 1: ??? --
+
+This is a barebones Editor class, which overrides how the component is drawn within the Inspector. The class inherits from Unity's :Editor class. The "Can-Edit-Multiple-Objects" tag allows for multi-select, and the "CustomEditor" tag specifies the target Component class. 
+
+In this stage, the GUI is drawn using Editor's "Draw-Default-Inspector" method, which produces the default look for our component's serialized fields. This is called from the OnInspectorGUI method, which is triggered whenever the inspector panel is redrawn or interacted with. In order to detect changes to data, Unity's BeginChangeCheck() and EndChangeCheck() are used. However these methods fail to catch changes caused by Undo, Revert, or other complicated operations. Furthermore, we've only stored the "Has-Modifications" variable locally, and this boolean is obliterated when changing selection. 
+
+
+-- Serialized Object Primer --
+
+
+
+
+-- Stage 2: ??? ---
+
