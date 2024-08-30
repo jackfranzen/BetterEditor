@@ -12,7 +12,7 @@ namespace BetterEditorDemos
     {
         
         // -- Track updates
-        //      (We're only tracking in the editor, so clear this state if we change selection)
+        //      (because this boolean is private to this editor class, it will be obliterated when the selection is changed)
         private bool hasModifications = false;
         public void OnEnable()
         {
