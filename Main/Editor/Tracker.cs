@@ -46,18 +46,22 @@ namespace BetterEditor
             tracking = true;
             content ??= prop.GetGUIContent();
             RefreshTracking();
-            
         }
         
+        
+        // -- Different Types of Trackers check for Updates in their own ways (Tracker vs ListTracker)
         public bool WasUpdated(ETrackLog log = ETrackLog.None)
         {
             if (!tracking)
                 return false;
             return WasUpdatedInternal(log);
         }
+        public abstract bool WasUpdatedInternal(ETrackLog log = ETrackLog.None);
         
+        // -- Tracking is initialized in Tracker or ListTracker
         public abstract void RefreshTracking();
         
+        // -- Stop Tracking
         public void StopTracking()
         {
             prop?.Dispose();
@@ -65,8 +69,7 @@ namespace BetterEditor
             tracking = false;
         }
         
-        // -- Abstract Methods
-        public abstract bool WasUpdatedInternal(ETrackLog log = ETrackLog.None);
+        // -- Other Abstract Methods
         protected abstract bool ValidFor(SerializedProperty sPropIn);
         protected abstract string InvalidMessage();
         
