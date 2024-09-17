@@ -14,8 +14,8 @@ namespace BetterEditor
     {
         
         // -- Constructor
-        //      - @ExpectedTypeIn: Optionally set an expected type for Collections that call .Track(), only used for
-        //              non-top-level collections that call .SetAsRelative()
+        //      - @ExpectedTypeIn: Optionally set an expected type for Groups that call .Track(), only used for
+        //              non-top-level groups that call .SetAsRelative()
         public TrackerGroup(System.Type expectedTypeIn)
         {
             SetExpectedType(expectedTypeIn);
@@ -78,7 +78,7 @@ namespace BetterEditor
         {
             // -- Check has Trackers
             if (this.Any() == false)
-                throw new Exception($"{GetType()}.WasUpdated() called on empty collection! {GetLogStuff()}");
+                throw new Exception($"{GetType()}.WasUpdated() called on empty TrackerGroup! {GetLogStuff()}");
             
             // -- Use the generic WasAnyUpdated() method. 
             return TrackingExtensions.WasUpdated(this, log);
@@ -90,7 +90,7 @@ namespace BetterEditor
             
             // -- Check has Trackers
             if (this.Any() == false)
-                throw new Exception($"{GetType()}.RefreshTracking() called on empty collection! {GetLogStuff()}");
+                throw new Exception($"{GetType()}.RefreshTracking() called on empty TrackerGroup! {GetLogStuff()}");
             
             foreach (var tracker in this)
                 tracker.RefreshTracking();
@@ -100,25 +100,25 @@ namespace BetterEditor
         {
             // -- Check has Trackers
             if (this.Any() == false)
-                throw new Exception($"{GetType()}.Track() called on empty collection! {GetLogStuff()} {source.GetLogStuff()}");
+                throw new Exception($"{GetType()}.Track() called on empty TrackerGroup! {GetLogStuff()} {source.GetLogStuff()}");
             
             // -- There are actually 3 layers of hierarchy (or input) that can occur here.
-            //     -  [TOP-LEVEL] (An iTrack Editor representing an entire Serialized Object.)
+            //     -  [TOP-LEVEL] (A Group used in an iTrack class, representing an entire Serialized Object.)
             //              - RECEIVES: SerializedObject
-            //              - TARGET: does nothing (always a Collection)
+            //              - TARGET: does nothing (always a TrackerGroup)
             //              - SENDS: SerializedObject,
             //     -  [FIRST-RELATIVE]
             //              - RECEIVE: OBJECT
             //              - TARGET: Gets "our" PROPERTY relative to this OBJECT
-            //              - SENDS: "our" PROPERTY (Collection only)
+            //              - SENDS: "our" PROPERTY (TrackerGroup only)
             //     -  [FULL-RELATIVE]
             //              - RECEIVE: PROPERTY
             //              - TARGET: Gets "our" PROPERTY relative to this PROPERTY
-            //              - SENDS: "our" PROPERTY (Collection only)
+            //              - SENDS: "our" PROPERTY (TrackerGroup only)
             
             // -- In Other words:
-            //         - Tracking for this collection is configured as either (A) Top-level or (B) Relative with property name
-            //         - Input for this collection is (C) SerializedObject or (D) SerializedProperty
+            //         - Tracking for this group is configured as either (A) Top-level or (B) Relative with property name
+            //         - Input for this group is (C) SerializedObject or (D) SerializedProperty
             //              Top-Level: (A) + (C)
             //              First-Relative: (B) + (C)
             //              Full-Relative: (B) + (D)
@@ -129,13 +129,11 @@ namespace BetterEditor
             {
                 // -- Case (A) + (D) is invalid
                 if (source.sourceIsObject == false)
-                    throw new Exception($"{GetType()}.Track() Top-Level collection received a property, did you forget SetRelativePropName()?");
+                    throw new Exception($"{GetType()}.Track() Top-Level group received a property, did you forget SetRelativePropName()?");
                 
                 // -- Do nothing, all of our children simply receive the source.
                 foreach (var tracker in this)
                     tracker.Track( source );
-                isTracking = true;
-                return;
             }
             
             // -- (B) Relative:
@@ -151,6 +149,7 @@ namespace BetterEditor
                 if(foundProp == null)
                     throw new Exception($"{GetType()}.Track() could not find property {propName} from {source.GetLogStuff()}");
                 
+                // -- Optionally, Check found prop is of expectedType
                 if(hasExpectedType && !foundProp.type.Contains(expectedType.Name))
                     throw new Exception($"{GetType()}.Track() found property {propName} with unexpected type {foundProp.type} instead of {expectedType} on {source.GetLogStuff()}");
                 
@@ -158,8 +157,10 @@ namespace BetterEditor
                 prop = foundProp;
                 foreach (var tracker in this)
                     tracker.Track( prop.AsSource() );
-                isTracking = true;
             }
+            
+            // -- Tracking is enabled!
+            isTracking = true;
         }
         
         
@@ -169,20 +170,20 @@ namespace BetterEditor
         // ------------------------------------------------
         
         // -- Builds the tracker list from object reflection
-        //      - It's only intended that one collection run this operation per object, as a definitive source of all sub-trackers defined in the object.
-        //      - @includeCollections: If true, will also include any TrackerCollections found in the object, which is a terrible idea.
-        //              (Note, an iTrack wrapper with an internal collection, like a mini-editor, will always be gathered.)
-        public void PopulateWithReflection(object obj, bool includeCollections = false)
+        //      - It's only intended that one group run this operation per object, as a definitive source of all trackers defined in the object.
+        //      - @includeGroups: If true, will also include any TrackerGroups found in the object, which is a terrible idea.
+        //              Note, a custom iTrack class with an internal group will always be gathered.
+        public void PopulateWithReflection(object obj, bool includeGroups = false)
         {
             var fields = obj.GetType().GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             foreach (var field in fields)
             {
                 
-                // -- Skip self and Collections
-                var isCollection = field.FieldType == typeof(TrackerGroup);
-                if(isCollection && field.GetValue(obj) == this)
+                // -- Skip self and Groups
+                var isGroup = field.FieldType == typeof(TrackerGroup);
+                if(isGroup && field.GetValue(obj) == this)
                     continue;
-                if(isCollection && !includeCollections)
+                if(isGroup && !includeGroups)
                     continue;
                 
                 // -- check implements ITrack
@@ -193,7 +194,7 @@ namespace BetterEditor
             }
             
             if(fields.Length == 0)
-                throw new Exception($"{GetType()}.PopulateWithReflection() found no fields in {obj.GetType().Name}");
+                throw new Exception($"{GetType()}.PopulateWithReflection() found no valid iTrack fields in {obj.GetType().Name}");
         }    
         
         public void PopulateWithReflectionIfEmpty(object obj)

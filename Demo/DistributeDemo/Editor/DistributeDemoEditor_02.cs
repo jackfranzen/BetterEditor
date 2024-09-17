@@ -9,8 +9,8 @@ namespace BetterEditorDemos
     [CanEditMultipleObjects]
     
     // -- Target DistributeDemoComponent_Vanilla component
-    [CustomEditor(typeof(SpheresDemo_02))]
-    public class SpheresDemoEditor_02 : Editor
+    [CustomEditor(typeof(DistributeDemoComponent02))]
+    public class DistributeDemoEditor_02 : Editor
     {
         
         // -- Track updates
@@ -23,7 +23,7 @@ namespace BetterEditorDemos
 
         
         // -- Used for nameof()
-        private static SpheresDemo_02 DEMO_02;
+        private static DistributeDemoComponent02 _demoComponent02;
 
         // -- Top-Level Properties to hide, used below
         private List<string> hiddenProperties = new List<string>()
@@ -36,8 +36,14 @@ namespace BetterEditorDemos
         public override void OnInspectorGUI()
         {
             // -- Information about this demo, and controls to swap
-            var updatedStage = SpheresDemoEditors.DrawInfoAndSwitcherWithModifyWarning(Info, ref hasModifications);
+            DistributeDemoEditorCommon.DrawDemoInfoAndApplyRow(StageInfo, hasModifications, out var updatedStage, out var pressedApply);
             if(updatedStage) return;
+            if(pressedApply)
+            {
+                DistributeDemoEditorCommon.Distribute(targets);
+                hasModifications = false;
+                return;
+            }
             
             // -- Update Serialized Object
             //       - serializedObject is an Editor property. It's a collection of all properties
@@ -46,7 +52,7 @@ namespace BetterEditorDemos
             serializedObject.Update();
             
             // -- Get the "enablePreview" SerializedProperty from that object
-            var propertyName = nameof(DEMO_02.enablePreview); // -- Gives "enablePreview"
+            var propertyName = nameof(_demoComponent02.enablePreview); // -- Gives "enablePreview"
             var enablePreviewProp = serializedObject.FindProperty(propertyName);
             
             // -- Check if the property is true for ALL selected components
@@ -70,7 +76,7 @@ namespace BetterEditorDemos
                 bool propEnabled = true; 
                 
                 // -- preview color is only enabled if preview is enabled
-                if(propPath == nameof(DEMO_02.previewColor))
+                if(propPath == nameof(_demoComponent02.previewColor))
                     propEnabled = anyPreviewsEnabled;
                 
                 // -- Unfortunately, we can't disable individual child properties within our color classes...
@@ -93,10 +99,10 @@ namespace BetterEditorDemos
         
         
         // -- Info about this demo
-        private static readonly SpheresDemoInfo Info = new()
+        private static readonly DistributeDemo_StageInfo StageInfo = new()
         {
-            stage = ESpheresDemoStages.BasicSerialized,
-            title = "Using Serialized (iterate)",
+            stage = EDistributeDemoStages.BasicSerialized,
+            title = "Iterating Serialized Properties",
             description = "Draws the component by iterating all properties, similar to Unity's DrawDefaultInspector().\n\n" +
                           "Checks for change using Unity's serializedObject.hasModifiedProperties.\n\n"+
                           "Shows how to hide and disable controls in the most basic form, with basic SerializedProperty usage.",
@@ -109,7 +115,7 @@ namespace BetterEditorDemos
                 "Iterating props provides poor support for modifying child props of objects",
                 "Pasting/Undo/Redo/Reset/Revert do not trigger updates!",
             },
-            fileName = "SpheresDemoEditor_02.cs",
+            fileName = "DistributeDemoEditor_02.cs",
         };
     }
 }

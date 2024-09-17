@@ -104,11 +104,11 @@ namespace BetterEditorDemos
     
 
     [CanEditMultipleObjects]
-    [CustomEditor(typeof(SpheresDemo_05))]
-    public class SpheresDemoEditor_05 : Editor
+    [CustomEditor(typeof(DistributeDemoComponent05))]
+    public class DistributeDemoEditor_05 : Editor
     {
         // -- Target
-        private static readonly SpheresDemo_05 TARGET;
+        private static readonly DistributeDemoComponent05 TARGET;
         
         // -- An extra content for the color override
         private static GUIContent objectColorContent = new GUIContent("Override Color", "Override the first material's color with a custom color");
@@ -127,7 +127,7 @@ namespace BetterEditorDemos
         private SerializedProperty hasModificationsProp;
         
         // -- Main Group
-        private TrackerGroup allTrackers = new(typeof(SpheresDemo_05));
+        private TrackerGroup allTrackers = new(typeof(DistributeDemoComponent05));
         
         // -- Tracker Collections (So we can check which category was updated)
         private ITrack[] previewTrackers;
@@ -159,20 +159,20 @@ namespace BetterEditorDemos
         public override void OnInspectorGUI()
         {
             // -- Information about this demo, and controls to swap
-            var updatedStage = SpheresDemoEditors.DrawInfoAndSwitcher(Info);
+            var updatedStage = DistributeDemoEditorCommon.DrawDemoInfo(StageInfo);
             if(updatedStage) return;
             
             // -- Update Serialized Object
             serializedObject.Update();
             
             // -- Draw the modifications Row
-            var pressedApply = SpheresDemoEditors.DrawModifyWarningRowSerialized(hasModificationsProp);
+            var pressedApply = DistributeDemoEditorCommon.DrawApplyRowSerialized(hasModificationsProp);
             if (pressedApply)
             {
                 // -- Do the actual logic to apply the changes
                 //       - In this demo, we're setting hasModifiedProperties to false directly in the objects code, it's easier
                 //          and we're done teaching how serialized properties work.
-                SpheresDemoEditors.Distribute(targets, true); 
+                DistributeDemoEditorCommon.Distribute(targets, true); 
             }
             
             // -- Throw error if group has not been given a started Tracking yet
@@ -261,9 +261,9 @@ namespace BetterEditorDemos
         
         
         // -- Info about this demo
-        private static readonly SpheresDemoInfo Info = new()
+        private static readonly DistributeDemo_StageInfo StageInfo = new()
         {
-            stage = ESpheresDemoStages.UsingGroups,
+            stage = EDistributeDemoStages.UsingGroups,
             title = "Reusable Editors: Groups and ITrackAndDraw",
             description = "Uses TrackerGroups and separate 'Mini-Editors'\n\n"+
                           "In this example, a separate class is created to track and draw ColorData, then used twice.\n"+
@@ -276,7 +276,7 @@ namespace BetterEditorDemos
             redTexts = new List<string>()
             {
             },
-            fileName = "SpheresDemoEditor_05.cs",
+            fileName = "DistributeDemoEditor_05.cs",
         };
     }
 }

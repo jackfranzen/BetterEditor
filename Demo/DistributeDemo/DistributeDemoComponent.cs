@@ -23,7 +23,7 @@ namespace BetterEditorDemos
     }
     
     // -- The main component class used in the demo
-    public class SpheresDemo : MonoBehaviour
+    public class DistributeDemoComponent : MonoBehaviour
     {
         // -- PREVIEW PROPERTIES
         public bool enablePreview = true;

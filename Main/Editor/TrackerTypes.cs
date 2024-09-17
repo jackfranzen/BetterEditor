@@ -33,8 +33,7 @@ namespace BetterEditor
         public SerializedProperty sParentProp;
         public bool sourceIsObject;
         
-        // -- Track from Object
-        //      @isTopLevelIn: If true, we are sending an Object into tracking
+        // -- Track directly from Object
         public TrackSource(SerializedObject sObjectIn)
         {
             if (sObjectIn == null)
@@ -43,6 +42,8 @@ namespace BetterEditor
             sObject = sObjectIn;
             sParentProp = null;
         }
+        
+        // -- Track relative to another Property
         public TrackSource(SerializedProperty sParentPropIn)
         {
             if (sParentPropIn == null)

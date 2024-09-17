@@ -8,12 +8,12 @@ using UnityEngine;
 namespace BetterEditorDemos
 {
     [CanEditMultipleObjects]
-    [CustomEditor(typeof(SpheresDemo_03))]
-    public class SpheresDemoEditor_03 : Editor
+    [CustomEditor(typeof(DistributeDemoComponent03))]
+    public class DistributeDemoEditor_03 : Editor
     {
         
         // -- Used for nameof()
-        private static SpheresDemo DEMO;
+        private static DistributeDemoComponent _demoComponent;
         
         // -- Serialized Properties from the target component
         private SerializedProperty enablePreviewProp;
@@ -74,27 +74,27 @@ namespace BetterEditorDemos
             ExampleFoldoutContent = new GUIContent("Objects to Distribute", "This foldout is an example, a regular foldout will not support copy/paste :(");
             
             // -- Preview Props
-            enablePreviewProp = serializedObject.FindPropertyChecked(nameof(DEMO.enablePreview));
-            previewColorProp = serializedObject.FindPropertyChecked(nameof(DEMO.previewColor));
-            previewColorUseProp = previewColorProp.FindRelativeChecked(nameof(DEMO.previewColor.use)); // -- Relative
-            previewColorColorProp = previewColorProp.FindRelativeChecked(nameof(DEMO.previewColor.color)); // -- Relative
+            enablePreviewProp = serializedObject.FindPropertyChecked(nameof(_demoComponent.enablePreview));
+            previewColorProp = serializedObject.FindPropertyChecked(nameof(_demoComponent.previewColor));
+            previewColorUseProp = previewColorProp.FindRelativeChecked(nameof(_demoComponent.previewColor.use)); // -- Relative
+            previewColorColorProp = previewColorProp.FindRelativeChecked(nameof(_demoComponent.previewColor.color)); // -- Relative
             
             // -- Distribution Props
-            seedProp = serializedObject.FindPropertyChecked(nameof(DEMO.seed));
-            totalToGenerateProp = serializedObject.FindPropertyChecked(nameof(DEMO.totalToGenerate));
-            radiusProp = serializedObject.FindPropertyChecked(nameof(DEMO.radius));
+            seedProp = serializedObject.FindPropertyChecked(nameof(_demoComponent.seed));
+            totalToGenerateProp = serializedObject.FindPropertyChecked(nameof(_demoComponent.totalToGenerate));
+            radiusProp = serializedObject.FindPropertyChecked(nameof(_demoComponent.radius));
             
             // -- Object Props
-            overrideObjectColorProps = serializedObject.FindPropertyChecked(nameof(DEMO.objectColor));
-            overrideObjectColorUseProp = overrideObjectColorProps.FindRelativeChecked(nameof(DEMO.objectColor.use)); // -- Relative
-            overrideObjectColorColorProp = overrideObjectColorProps.FindRelativeChecked(nameof(DEMO.objectColor.color)); // -- Relative
-            objectPrefabsProp = serializedObject.FindPropertyChecked(nameof(DEMO.objectPrefabs));
+            overrideObjectColorProps = serializedObject.FindPropertyChecked(nameof(_demoComponent.objectColor));
+            overrideObjectColorUseProp = overrideObjectColorProps.FindRelativeChecked(nameof(_demoComponent.objectColor.use)); // -- Relative
+            overrideObjectColorColorProp = overrideObjectColorProps.FindRelativeChecked(nameof(_demoComponent.objectColor.color)); // -- Relative
+            objectPrefabsProp = serializedObject.FindPropertyChecked(nameof(_demoComponent.objectPrefabs));
             
             // -- Find the protected hasModifications property by name, using BetterEditor's FindPropertyChecked for safety
             //          (It's a good idea to always use this method in place of FindProperty)
             hasModificationsProp = serializedObject.FindPropertyChecked("hasModifications");
             
-            createdObjectsProp = serializedObject.FindPropertyChecked(nameof(DEMO.createdObjects));
+            createdObjectsProp = serializedObject.FindPropertyChecked(nameof(_demoComponent.createdObjects));
             
             // -- Track!
             RefreshTracking();
@@ -136,18 +136,18 @@ namespace BetterEditorDemos
         public override void OnInspectorGUI()
         {
             // -- Information about this demo, and controls to swap
-            var updatedStage = SpheresDemoEditors.DrawInfoAndSwitcher(Info);
+            var updatedStage = DistributeDemoEditorCommon.DrawDemoInfo(StageInfo);
             if(updatedStage) return;
             
             // -- Update Serialized Object, as always
             serializedObject.Update();
             
             // -- Draw the modifications Row using the serialized property for hasModifications (after serializedObject.Update())
-            var pressedApply = SpheresDemoEditors.DrawModifyWarningRowSerialized(hasModificationsProp);
+            var pressedApply = DistributeDemoEditorCommon.DrawApplyRowSerialized(hasModificationsProp);
             if (pressedApply)
             {
                 // -- Do the actual logic to apply the changes
-                SpheresDemoEditors.Distribute(targets);
+                DistributeDemoEditorCommon.Distribute(targets);
                 
                 // -- Because the above method silently modifies the "createdObjects" property, we need to update our serializedObject again,
                 //      to ensure that the changes from other sources are respected and not overwritten or distorted by a follow-up apply
@@ -182,7 +182,7 @@ namespace BetterEditorDemos
             // -- Primary Props
             EditorGUILayout.LabelField("Primary Props", EditorStyles.boldLabel);
             EditorGUI.indentLevel += 1;
-            EditorGUILayout.HelpBox(SpheresDemoEditors.GizmosInfo, MessageType.Info);
+            EditorGUILayout.HelpBox(DistributeDemoEditorCommon.GizmosInfo, MessageType.Info);
             EditorGUILayout.PropertyField(enablePreviewProp);
             
             // -- Alternate to GUI.enabled from Unity
@@ -304,19 +304,19 @@ namespace BetterEditorDemos
         
         
         // -- Info about this demo
-        private static readonly SpheresDemoInfo Info = new()
+        private static readonly DistributeDemo_StageInfo StageInfo = new()
         {
-            stage = ESpheresDemoStages.FullSerialized,
-            title = "Custom Editor & Tracking each Property",
-            description = "Draws the component by gathering all properties which we want to draw and drawing them in a completely custom ruleset.\n\n" +
+            stage = EDistributeDemoStages.FullSerialized,
+            title = "Drawing and Tracking each Property",
+            description = "Draws the component by gathering all properties which we want to draw and drawing a fully customized UI.\n\n" +
                           "Checks for changes by storing and comparing previous values against current values, without BetterEditor trackers.\n\n"+
-                          "Tracking HasModifications directly on the serializedObject, it won't be forgotten\n\n",
+                          "Demonstrates how to correctly track changes to groups of serialized properties across all operations. \n\n",
             greenTexts = new List<string>()
             {
-                "Vanilla Unity code",
-                "UI structure is clear; Easier to build complicated UI",
-                "Reacts to updates from all sources",
-                "Undo/Redo keeps HasModifications in sync (using a trick)"
+                "Fully customized UI with foldouts, labels, and custom rules",
+                "Properly track updates to individual properties",
+                "Handle Undo, Revert, Reset, and paste correctly!",
+                "Vanilla Unity code"
             },
             redTexts = new List<string>()
             {
@@ -324,7 +324,7 @@ namespace BetterEditorDemos
                 "Large code-changes required when updating component data structure",
                 "No logging",
             },
-            fileName = "SpheresDemoEditor_03.cs",
+            fileName = "DistributeDemoEditor_03.cs",
         };
     }
 }

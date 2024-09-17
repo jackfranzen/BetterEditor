@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace BetterEditorDemos
 {
-    public class SpheresDemo_02 : SpheresDemo
+    public class DistributeDemoComponent02 : DistributeDemoComponent
     {
         
     }

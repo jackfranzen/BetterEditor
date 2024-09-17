@@ -85,12 +85,12 @@ namespace BetterEditor
     public class Tracker : TrackerAbstract
     {
         // -- Type
-        private readonly bool checkType = false;
+        private readonly bool hasExpectedType = false;
         private readonly SerializedPropertyType expectedSerializedType;
         
         // -- Tracking props (public get)
         public object previousValue { get; private set; }
-        public bool previouslyMixed { get; private set; } = false;
+        public bool previouslyHadMultipleDifferentValues { get; private set; } = false;
 
         
         // -----------------
@@ -99,7 +99,7 @@ namespace BetterEditor
         public Tracker(in string targetPropName, SerializedPropertyType expected) : base(targetPropName)
         {
             expectedSerializedType = expected;
-            checkType = true;
+            hasExpectedType = true;
         }
         public Tracker(in string targetPropName) : base(targetPropName) { }
         
@@ -109,7 +109,7 @@ namespace BetterEditor
         // -----------------------
         public override bool WasUpdatedInternal(ETrackLog log = ETrackLog.None)
         {
-            var wasUpdated = SerializedExtensionMethods.WasUpdated(prop, previousValue, previouslyMixed);
+            var wasUpdated = SerializedExtensionMethods.WasUpdated(prop, previousValue, previouslyHadMultipleDifferentValues);
             if (log == ETrackLog.None) 
                 return wasUpdated;
             
@@ -121,10 +121,10 @@ namespace BetterEditor
         }
         public override void RefreshTracking()
         {
-            if (!tracking)
+            if (!tracking) // [todo] this return feels out of place, should be higher up?
                 return;
             previousValue = prop.BetterObjectValue();
-            previouslyMixed = prop.hasMultipleDifferentValues;
+            previouslyHadMultipleDifferentValues = prop.hasMultipleDifferentValues;
         }
         
         
@@ -133,7 +133,7 @@ namespace BetterEditor
         // -----------------------
         protected override bool ValidFor(SerializedProperty sPropIn)
         {
-            if (!checkType)
+            if (!hasExpectedType)
                 return true;
             return sPropIn.propertyType == expectedSerializedType;
         }

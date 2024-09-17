@@ -7,12 +7,12 @@ using UnityEngine;
 namespace BetterEditorDemos
 {
     [CanEditMultipleObjects]
-    [CustomEditor(typeof(SpheresDemo_04))]
-    public class SpheresDemoEditor_04 : Editor
+    [CustomEditor(typeof(DistributeDemoComponent04))]
+    public class DistributeDemoEditor_04 : Editor
     {
         
         // -- Used for nameof()
-        private static SpheresDemo DEMO;
+        private static DistributeDemoComponent _demoComponent;
         private static SpheresDemo_ColorData COLORDATA;
         
         // -- Serialized Properties (Ones we don't track explicitly)
@@ -21,18 +21,18 @@ namespace BetterEditorDemos
         private SerializedProperty hasModificationsProp;
         
         // -- BetterEditor: SerializedTrackers for all properties
-        private Tracker enablePreviewTracker = new( nameof(DEMO.enablePreview) );
+        private Tracker enablePreviewTracker = new( nameof(_demoComponent.enablePreview) );
         private Tracker previewColorUseTracker = new( nameof(COLORDATA.use) ); // -- relative to previewColorProp
         private Tracker previewColorColorTracker = new( nameof(COLORDATA.color) ); // -- relative to previewColorProp
         
-        private Tracker seedTracker = new( nameof(DEMO.seed) );
-        private Tracker radiusTracker = new( nameof(DEMO.radius) );
+        private Tracker seedTracker = new( nameof(_demoComponent.seed) );
+        private Tracker radiusTracker = new( nameof(_demoComponent.radius) );
         
-        private Tracker numSpheresTracker = new( nameof(DEMO.totalToGenerate) );
+        private Tracker totalToGenerateTracker = new( nameof(_demoComponent.totalToGenerate) );
         private Tracker objectColorUseTracker = new( nameof(COLORDATA.use) ); // -- relative to sphereColorProp
         private Tracker objectColorColorTracker = new( nameof(COLORDATA.color) ); // -- relative to sphereColorProp
 
-        private ListTracker createdObjectsTracker = new(nameof(DEMO.createdObjects));
+        private ListTracker createdObjectsTracker = new(nameof(_demoComponent.createdObjects));
         
         // -- Collection of all Trackers, gather automatically below
         private TrackerGroup allTrackers = new();
@@ -43,16 +43,16 @@ namespace BetterEditorDemos
         
         public void OnEnable()
         {
-            // -- Get ALL (Non-TrackingCollection) ITrack objects via reflection (The 8 trackers)
+            // -- Get ALL  ITrack objects via reflection (The 8 trackers)
             allTrackers.PopulateWithReflection(this);
             
             // -- Setup Tracker Groups
             previewTrackers = new Tracker[] {enablePreviewTracker, previewColorUseTracker, previewColorColorTracker};
-            importantTrackers = new Tracker[] {seedTracker, radiusTracker, numSpheresTracker, objectColorUseTracker, objectColorColorTracker};
+            importantTrackers = new Tracker[] {seedTracker, radiusTracker, totalToGenerateTracker, objectColorUseTracker, objectColorColorTracker};
 
             // -- Get Serialized Properties
-            previewColorProp = serializedObject.FindPropertyChecked(nameof(DEMO.previewColor));
-            objectColorProp = serializedObject.FindPropertyChecked(nameof(DEMO.objectColor));
+            previewColorProp = serializedObject.FindPropertyChecked(nameof(_demoComponent.previewColor));
+            objectColorProp = serializedObject.FindPropertyChecked(nameof(_demoComponent.objectColor));
             hasModificationsProp = serializedObject.FindPropertyChecked("hasModifications");
 
             // -- Track!
@@ -64,17 +64,17 @@ namespace BetterEditorDemos
             // -- Preview Props
             enablePreviewTracker.Track(serializedObject.AsSource());
             
-            // -- Preview Color
+            // -- Preview Color (Relative to previewColorProp)
             previewColorUseTracker.Track(previewColorProp.AsSource());
             previewColorColorTracker.Track(previewColorProp.AsSource());
             
             // -- Important Props
             seedTracker.Track(serializedObject.AsSource());
-            numSpheresTracker.Track(serializedObject.AsSource());
+            totalToGenerateTracker.Track(serializedObject.AsSource());
             radiusTracker.Track(serializedObject.AsSource());
             
-            // -- Object Color
-            objectColorUseTracker.Track(objectColorProp.AsSource()); 
+            // -- Object Color (Relative to objectColorProp)
+            objectColorUseTracker.Track(objectColorProp.AsSource());  
             objectColorColorTracker.Track(objectColorProp.AsSource());
             
             // -- Example: createdObjectsTracker
@@ -85,18 +85,18 @@ namespace BetterEditorDemos
         public override void OnInspectorGUI()
         {
             // -- Information about this demo, and controls to swap
-            var updatedStage = SpheresDemoEditors.DrawInfoAndSwitcher(Info);
+            var updatedStage = DistributeDemoEditorCommon.DrawDemoInfo(StageInfo);
             if(updatedStage) return;
             
             // -- Update Serialized Object
             serializedObject.Update();
             
             // -- Draw the modifications Row using the serialized property for hasModifications
-            var pressedApply = SpheresDemoEditors.DrawModifyWarningRowSerialized(hasModificationsProp);
+            var pressedApply = DistributeDemoEditorCommon.DrawApplyRowSerialized(hasModificationsProp);
             if (pressedApply)
             {
                 // -- Do the actual logic to apply the changes
-                SpheresDemoEditors.Distribute(targets);
+                DistributeDemoEditorCommon.Distribute(targets);
                 
                 // -- Because the above method silently modifies the "createdObjects" property, we need to update our serializedObject again,
                 //      to ensure that the changes from other sources are respected and not overwritten or distorted by a follow-up apply
@@ -119,7 +119,7 @@ namespace BetterEditorDemos
                 EditorGUILayout.PropertyField(createdObjectsTracker.prop);
             
             // -- Clamp the number of spheres using BetterEditor's Enforce methods
-            numSpheresTracker.prop.EnforceClamp(4, 100);
+            totalToGenerateTracker.prop.EnforceClamp(4, 100);
             seedTracker.prop.EnforceMinimum(0);
             
             // -- importantTrackers Modified?
@@ -169,22 +169,22 @@ namespace BetterEditorDemos
         
         
         // -- Info about this demo
-        private static readonly SpheresDemoInfo Info = new()
+        private static readonly DistributeDemo_StageInfo StageInfo = new()
         {
-            stage = ESpheresDemoStages.BetterTrackers,
+            stage = EDistributeDemoStages.BetterTrackers,
             title = "BetterEditor: Intro to Tracking",
-            description = "Basic example of BetterEditor's SerializedTrackers & TrackerCollections to improve update-tracking!",
+            description = "Basic example of BetterEditor's Trackers & TrackerGroup to improve update-tracking!",
             greenTexts = new List<string>()
             {
-                "Much less headache!",
-                "Automatic logging options (see inspector)",
+                "Much less code and headache!",
+                "Automatic logging options (see console)",
                 "Comparisons in WasUpdated() are generic, SerializedTracker is Type-agnostic",
-                "Reacts to updates from all sources",
+                "ListTracker for tracking lists",
             },
             redTexts = new List<string>()
             {
             },
-            fileName = "SpheresDemoEditor_04.cs",
+            fileName = "DistributeDemoEditor_04.cs",
         };
     }
 }

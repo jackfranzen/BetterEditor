@@ -11,13 +11,13 @@ namespace BetterEditorDemos
     
     
     [CanEditMultipleObjects]
-    [CustomEditor(typeof(SpheresDemo_06))]
+    [CustomEditor(typeof(DistributeDemoComponent06))]
     
-    public class SpheresDemoEditor_06 : Editor
+    public class DistributeDemoEditor_06 : Editor
     {
         
         // -- Target
-        private static readonly SpheresDemo_06 TARGET;
+        private static readonly DistributeDemoComponent06 TARGET;
         
         // -- An extra content for the color override
         private static GUIContent objectColorContent = new GUIContent("Override Color", "Override the first material's color with a custom color");
@@ -29,7 +29,7 @@ namespace BetterEditorDemos
         private GUIContent showObjectRenderersContent = new("Object Renderers Enabled", "Enable/Disable all renderers in all created objects");
         
         // -- The Better Editor
-        public BetterEditor<SpheresDemo_06> betterEditor;
+        public BetterEditor<DistributeDemoComponent06> betterEditor;
         
         // -- Trackers and Sub-Editors
         public Tracker enablePreviewTracker = new(nameof(TARGET.enablePreview));
@@ -45,7 +45,7 @@ namespace BetterEditorDemos
         private SerializedProperty createdObjectsProp;
         
         // -- Tracker Collections (So we can check which category was updated)
-        public TrackerGroup allComponentTrackers = new (typeof(SpheresDemo_06) );
+        public TrackerGroup allComponentTrackers = new (typeof(DistributeDemoComponent06) );
         public TrackerGroup previewTrackers = new();
         public TrackerGroup importantTrackers = new();
         
@@ -53,7 +53,7 @@ namespace BetterEditorDemos
         public void OnEnable()
         {
             // -- Start BetterEditor
-            betterEditor = new BetterEditor<SpheresDemo_06>()
+            betterEditor = new BetterEditor<DistributeDemoComponent06>()
             {
                 editor = this,
                 OnTargetsUpdated = HandleTargetsUpdated,
@@ -102,11 +102,11 @@ namespace BetterEditorDemos
             objectRenderersObject?.Update();
             
             // -- Information about this demo, and controls to swap
-            var updatedStage = SpheresDemoEditors.DrawInfoAndSwitcher(Info);
+            var updatedStage = DistributeDemoEditorCommon.DrawDemoInfo(StageInfo);
             if(updatedStage) return;
             
             // -- Draw the modifications Row
-            var pressedApply = SpheresDemoEditors.DrawModifyWarningRowSerialized(hasModificationsProp);
+            var pressedApply = DistributeDemoEditorCommon.DrawApplyRowSerialized(hasModificationsProp);
             
             
             // -- Throw error if group has not been given a started Tracking yet
@@ -121,7 +121,7 @@ namespace BetterEditorDemos
                 // -- Do the actual logic to apply the changes
                 //       - In this demo, we're setting hasModifiedProperties to false directly in the objects code, it's easier
                 //          and we're done teaching how serialized properties work.
-                SpheresDemoEditors.Distribute(targets, true);
+                DistributeDemoEditorCommon.Distribute(targets, true);
                 
                 // -- Regather targets immediately, to prevent error spam from the objectRenderersObject based on previous (but now-deleted) objects
                 betterEditor.SetNeedsNewTargets();
@@ -147,12 +147,12 @@ namespace BetterEditorDemos
             
             // -- Strip all Invalid Created Objects from all targets
             //      (If a tracked created object is deleted from the scene, also delete it from the list)
-            foreach (SpheresDemo_06 target in betterEditor.Targets)
+            foreach (DistributeDemoComponent06 target in betterEditor.Targets)
                 target.createdObjects.RemoveAll(item => item == null);
             
             // -- Build a full list of renderers from all createdObjects in all targets
             List<Renderer> allRenderers = new();
-            foreach (SpheresDemo_06 target in betterEditor.Targets)
+            foreach (DistributeDemoComponent06 target in betterEditor.Targets)
                 foreach (var createdObject in target.createdObjects)
                     allRenderers.AddRange(createdObject.GetComponentsInChildren<Renderer>());
             
@@ -226,9 +226,9 @@ namespace BetterEditorDemos
         
         
         // -- Info about this demo
-        private static readonly SpheresDemoInfo Info = new()
+        private static readonly DistributeDemo_StageInfo StageInfo = new()
         {
-            stage = ESpheresDemoStages.UsingEverything,
+            stage = EDistributeDemoStages.UsingEverything,
             title = "BetterEditor Framework object",
             description = "The final demo, using the BetterEditor framework object to provide a better Targets List and info about the source of updates. " +
                           "HasModifiedProperties is now part of the Undo-Chain",
@@ -242,7 +242,7 @@ namespace BetterEditorDemos
             redTexts = new List<string>()
             {
             },
-            fileName = "SpheresDemoEditor_06.cs",
+            fileName = "DistributeDemoEditor_06.cs",
         };
     }
 }

@@ -11,7 +11,7 @@ namespace BetterEditorDemos
 {
     
     
-    public enum ESpheresDemoStages
+    public enum EDistributeDemoStages
     {
         BarebonesEditor = 1,
         BasicSerialized = 2,
@@ -22,9 +22,9 @@ namespace BetterEditorDemos
     }
 
     
-    public struct SpheresDemoInfo
+    public struct DistributeDemo_StageInfo
     {
-        public ESpheresDemoStages stage;
+        public EDistributeDemoStages stage;
         public string title;
         public string description;
         public List<string> greenTexts;
@@ -32,9 +32,9 @@ namespace BetterEditorDemos
         public string fileName;
     }
     
-    public struct SphereDemoInfo
+    public struct DistributeDemo_Stage
     {
-        public ESpheresDemoStages stage;
+        public EDistributeDemoStages stage;
         public System.Type component;
     }
     
@@ -42,7 +42,7 @@ namespace BetterEditorDemos
 
     
     
-    public static class SpheresDemoEditors
+    public static class DistributeDemoEditorCommon
     {
 
         public static Color mutedRed = new Color(255 / 255f, 79 / 255f, 79 / 255f);
@@ -84,57 +84,57 @@ namespace BetterEditorDemos
         
         
         
-        public static SphereDemoInfo Demo_01 = new ()
+        public static DistributeDemo_Stage Demo_01 = new ()
         {
-            stage = ESpheresDemoStages.BarebonesEditor,
-            component = typeof(SpheresDemo_01),
+            stage = EDistributeDemoStages.BarebonesEditor,
+            component = typeof(DistributeDemoComponent01),
         };
 
-        public static SphereDemoInfo Demo_02 = new ()
+        public static DistributeDemo_Stage Demo_02 = new ()
         {
-            stage = ESpheresDemoStages.BasicSerialized,
-            component = typeof(SpheresDemo_02),
+            stage = EDistributeDemoStages.BasicSerialized,
+            component = typeof(DistributeDemoComponent02),
         };
         
-        public static SphereDemoInfo Demo_03 = new ()
+        public static DistributeDemo_Stage Demo_03 = new ()
         {
-            stage = ESpheresDemoStages.FullSerialized,
-            component = typeof(SpheresDemo_03),
+            stage = EDistributeDemoStages.FullSerialized,
+            component = typeof(DistributeDemoComponent03),
         };
         
-        public static SphereDemoInfo Demo_04 = new ()
+        public static DistributeDemo_Stage Demo_04 = new ()
         {
-            stage = ESpheresDemoStages.BetterTrackers,
-            component = typeof(SpheresDemo_04),
+            stage = EDistributeDemoStages.BetterTrackers,
+            component = typeof(DistributeDemoComponent04),
         };
         
-        public static SphereDemoInfo Demo_05 = new ()
+        public static DistributeDemo_Stage Demo_05 = new ()
         {
-            stage = ESpheresDemoStages.UsingGroups,
-            component = typeof(SpheresDemo_05),
+            stage = EDistributeDemoStages.UsingGroups,
+            component = typeof(DistributeDemoComponent05),
         };
         
-        public static SphereDemoInfo Demo_06 = new ()
+        public static DistributeDemo_Stage Demo_06 = new ()
         {
-            stage = ESpheresDemoStages.UsingEverything,
-            component = typeof(SpheresDemo_06),
+            stage = EDistributeDemoStages.UsingEverything,
+            component = typeof(DistributeDemoComponent06),
         };
         
-        public static SphereDemoInfo DemoByEnum(ESpheresDemoStages stage)
+        public static DistributeDemo_Stage DemoByEnum(EDistributeDemoStages stage)
         {
             switch (stage)
             {
-                case ESpheresDemoStages.BarebonesEditor:
+                case EDistributeDemoStages.BarebonesEditor:
                     return Demo_01;
-                case ESpheresDemoStages.BasicSerialized:
+                case EDistributeDemoStages.BasicSerialized:
                     return Demo_02;
-                case ESpheresDemoStages.FullSerialized:
+                case EDistributeDemoStages.FullSerialized:
                     return Demo_03;
-                case ESpheresDemoStages.BetterTrackers:
+                case EDistributeDemoStages.BetterTrackers:
                     return Demo_04;
-                case ESpheresDemoStages.UsingGroups:
+                case EDistributeDemoStages.UsingGroups:
                     return Demo_05;
-                case ESpheresDemoStages.UsingEverything:
+                case EDistributeDemoStages.UsingEverything:
                     return Demo_06;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(stage), stage, null);
@@ -160,22 +160,22 @@ namespace BetterEditorDemos
         public const string GizmosInfo =
             "Enables a gizmo preview of the sphere distribution, these props don't requires an update and aren't tracked";
         
-        //public static ESpheresDemoStages currentSelection = ESpheresDemoStages.UnityChangeChecking;
+        //public static EDistributeDemoStages currentSelection = EDistributeDemoStages.UnityChangeChecking;
         
         
-        public static bool DrawInfoAndSwitcher(in SpheresDemoInfo demoInfo)//, Editor editor)
+        public static bool DrawDemoInfo(in DistributeDemo_StageInfo demoStageInfo)//, Editor editor)
         {
             BetterEditorGUI.DrawBoxWithColor(Color.grey, dividerStyle);
             
-            var previousStage = demoInfo.stage;
+            var previousStage = demoStageInfo.stage;
             var newStage = previousStage;
             
-            var fullPath = EditorsPath + "/" + demoInfo.fileName;
+            var fullPath = EditorsPath + "/" + demoStageInfo.fileName;
             currentEditorScript = AssetDatabase.LoadAssetAtPath<MonoScript>(fullPath);
 
             EditorGUILayout.BeginHorizontal();
             GUILayout.Label( "Demo: ", DemoPrefixHeaderStyle, GUILayout.ExpandWidth(false));
-            GUILayout.Label(demoInfo.title, DemoHeaderStyle, GUILayout.ExpandWidth(true));
+            GUILayout.Label(demoStageInfo.title, DemoHeaderStyle, GUILayout.ExpandWidth(true));
             EditorGUILayout.EndHorizontal();
             
             GUILayout.Space(4);
@@ -186,7 +186,7 @@ namespace BetterEditorDemos
                 // -- Enum Popup (centered vertically using BetterEditorGUI scope)
                 var width1 = GUILayout.Width(180);
                 using (new CenterVerticalScope(width1))
-                    newStage = (ESpheresDemoStages)EditorGUILayout.EnumPopup(GUIContent.none, previousStage, width1);
+                    newStage = (EDistributeDemoStages)EditorGUILayout.EnumPopup(GUIContent.none, previousStage, width1);
 
                 // -- Linker to script
                 using (new EditorGUI.DisabledScope(true))
@@ -203,13 +203,13 @@ namespace BetterEditorDemos
             GUILayout.Space(2);
             
             // -- Draw Description
-            EditorGUILayout.LabelField( demoInfo.description, EditorStyles.wordWrappedLabel );
+            EditorGUILayout.LabelField( demoStageInfo.description, EditorStyles.wordWrappedLabel );
             
             // -- Draw Green Text
-            DrawBulletPointsText(demoInfo.greenTexts, GreenWrappedTextStyle());
+            DrawBulletPointsText(demoStageInfo.greenTexts, GreenWrappedTextStyle());
             
             // -- Draw Red Text
-            DrawBulletPointsText(demoInfo.redTexts, RedWrappedTextStyle());
+            DrawBulletPointsText(demoStageInfo.redTexts, RedWrappedTextStyle());
             
             // -- Divider
             BetterEditorGUI.DrawBoxWithColor(Color.grey, dividerStyle);
@@ -244,34 +244,30 @@ namespace BetterEditorDemos
             GUILayout.Space(2);
         }
 
-        public static bool DrawInfoAndSwitcherWithModifyWarning(in SpheresDemoInfo demoInfo, ref bool hasModifications)
+        public static void DrawDemoInfoAndApplyRow(in DistributeDemo_StageInfo demoStageInfo, bool hasModifications, out bool updatedStage, out bool pressedApply)
         {
             // -- Information about this demo, and controls to swap
-            var updatedStage = DrawInfoAndSwitcher(demoInfo);
-            
-            // -- Draw Modify Warning
-            if (!hasModifications)
-                return updatedStage;
-            
+            updatedStage = DrawDemoInfo(demoStageInfo);
+
             // -- Draw a custom row with a button
             EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField($"Modifications Detected", ModificationsStyle, GUILayout.ExpandWidth(false));
-            var pressedApply = GUILayout.Button(new GUIContent("Apply"));
+            if (hasModifications)
+                EditorGUILayout.LabelField($"Modifications Detected", ModificationsStyle, GUILayout.ExpandWidth(false));
+            else
+                EditorGUILayout.LabelField($"No Modifications Detected", DemoHeaderStyle, GUILayout.ExpandWidth(false));
+            pressedApply = GUILayout.Button(new GUIContent("Apply"));
             EditorGUILayout.EndHorizontal();
-
+            
             // -- Divider
             BetterEditorGUI.DrawBoxWithColor(Color.grey, dividerStyle);
             
+            // -- Un-focus on Apply
             if (pressedApply)
-            {
-                hasModifications = false;
                 GUI.FocusControl(null);
-            }
-
-            return updatedStage;
+            
         }
 
-        public static bool DrawModifyWarningRowSerialized(SerializedProperty hasModifications)
+        public static bool DrawApplyRowSerialized(SerializedProperty hasModifications)
         {
             // -- Not a boolean!
             if(hasModifications.propertyType != SerializedPropertyType.Boolean)
@@ -290,20 +286,20 @@ namespace BetterEditorDemos
             var style = hasModifications.AnyTrue() ? ModificationsStyle : DemoHeaderStyle;
             
             // -- Draw a custom row with a button
-            var pressedClear = false;
+            var pressedApply = false;
             EditorGUILayout.BeginHorizontal(GUILayout.Height(20));
             EditorGUILayout.LabelField(hasModificationsText, style, GUILayout.ExpandWidth(false));
-            pressedClear = GUILayout.Button(new GUIContent("Apply"));
+            pressedApply = GUILayout.Button(new GUIContent("Apply"));
             EditorGUILayout.EndHorizontal();
 
             // -- Divider
             BetterEditorGUI.DrawBoxWithColor(Color.grey, dividerStyle);
             
-            if(pressedClear)
+            if(pressedApply)
                 GUI.FocusControl(null);
             
             // -- Clear Modifications on object
-            return pressedClear;
+            return pressedApply;
             
         }
 
@@ -358,11 +354,11 @@ namespace BetterEditorDemos
             }
         }
         
-        // -- Helper method to quickly call SpheresDemo.DistributeOnApply on a "Targets" Object list
+        // -- Helper method to quickly call Distribute on multiple components
         public static void Distribute(IEnumerable<Object> objects, bool directSetHasModifications = false)
         {
             foreach (var obj in objects)
-                if (obj is SpheresDemo demo)
+                if (obj is DistributeDemoComponent demo)
                     demo.Distribute(directSetHasModifications);
         }
         
