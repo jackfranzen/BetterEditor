@@ -160,18 +160,34 @@ namespace BetterEditorDemos
                 serializedObject.ApplyModifiedPropertiesWithoutUndo(); 
             }
             
-             
             // -- DRAW THE MAIN UI
             //      (Using all of our fancy new properties)
+            DrawMainUI();
+            
+            // -- Clamp property limits using BetterEditor's Enforce methods
+            totalToGenerateProp.EnforceClamp(4, 100);
+            seedProp.EnforceMinimum(0);
+            
+            // -- Check for all Updates!
+            CheckForUpdates();
+            
+            // -- (Regular Flow) Apply all changes made to the serialized Object's properties (since Update()) back to our target components
+            //          (If we already applied changes from the block above then this will do nothing and that's okay)
+            serializedObject.ApplyModifiedProperties();
+        }
+
+
+        private void DrawMainUI()
+        {
+            // -- Primary Props
             EditorGUILayout.LabelField("Primary Props", EditorStyles.boldLabel);
             EditorGUI.indentLevel += 1;
             EditorGUILayout.HelpBox(SpheresDemoEditors.GizmosInfo, MessageType.Info);
             EditorGUILayout.PropertyField(enablePreviewProp);
+            
             // -- Alternate to GUI.enabled from Unity
             using (new EditorGUI.DisabledScope(enablePreviewProp.AllFalse()))
-            {
                 EditorGUILayout.PropertyField(previewColorProp, true);
-            }
             EditorGUI.indentLevel -= 1;
             
             EditorGUILayout.LabelField("Distribution Props:", EditorStyles.boldLabel);
@@ -194,13 +210,12 @@ namespace BetterEditorDemos
             // -- draw our list of created objects
             using( new EditorGUI.DisabledScope(true))
                 EditorGUILayout.PropertyField(createdObjectsProp); 
-            
-            // -- Clamp property limits using BetterEditor's Enforce methods
-            totalToGenerateProp.EnforceClamp(4, 100);
-            seedProp.EnforceMinimum(0);
-            
-            // -- Check for all Updates!
-            var updated_previewEnabled = false;
+        }
+
+
+        private void CheckForUpdates()
+        {
+             var updated_previewEnabled = false;
             updated_previewEnabled |= prev_enablePreview != enablePreviewProp.boolValue;
             updated_previewEnabled |= prevMulti_enablePreview != enablePreviewProp.hasMultipleDifferentValues;
             
@@ -257,12 +272,7 @@ namespace BetterEditorDemos
             //      - We can do this before or after applying, no biggie. 
             if (updated_Any)
                 RefreshTracking();
-            
-            // -- (Regular Flow) Apply all changes made to the serialized Object's properties (since Update()) back to our target components
-            //          (If we already applied changes from the block above then this will do nothing and that's okay)
-            serializedObject.ApplyModifiedProperties();
         }
-
         
         private void HandlePreviewUpdated()
         {

@@ -19,7 +19,7 @@ namespace BetterEditorDemos
     public class SpheresDemo_ColorData
     {
         public bool use = false;
-        [FormerlySerializedAs("Color")] public Color color = Color.cyan;
+        public Color color = Color.cyan;
     }
     
     // -- The main component class used in the demo

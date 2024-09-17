@@ -36,7 +36,7 @@ namespace BetterEditor
         //          - [Cause 1] There was an update to any property tracked in betterEditor.GroupFull
         //          - [Cause 2] .refreshOnHierarchyUpdate was set to true and the hierarchy changed
         //          - [Cause 3] .refreshOnUndoRedo was set to true and an Undo/Redo operation occurred
-        //          - [Cause 4] A Script HotReload was detected and all data needs to be regathered
+        //          - [Cause 4] A Script HotReload has destroyed all lists and data needs to be regathered
         //          - [Cause 5] .SetNeedsNewTargets() was called manually
         public TargetsUpdatedDelegate OnTargetsUpdated;
             

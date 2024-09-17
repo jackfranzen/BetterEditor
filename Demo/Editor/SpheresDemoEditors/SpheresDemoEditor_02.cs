@@ -38,7 +38,6 @@ namespace BetterEditorDemos
             // -- Information about this demo, and controls to swap
             var updatedStage = SpheresDemoEditors.DrawInfoAndSwitcherWithModifyWarning(Info, ref hasModifications);
             if(updatedStage) return;
-
             
             // -- Update Serialized Object
             //       - serializedObject is an Editor property. It's a collection of all properties
@@ -59,9 +58,8 @@ namespace BetterEditorDemos
             for (bool enterChildren = true; serializedPropIterator.NextVisible(enterChildren); enterChildren = false)
             {
                 // -- Unfortunately, we don't get any control over individual child properties within object properties,
-                //       we can only operate on the top level properties in the component...
+                //       we can only operate on the top level properties in the serializedObject...
                 
-                // -- try while(serializedPropIterator.NextVisible(true)) and see what happens...
                 var propPath = serializedPropIterator.propertyPath;
 
                 // -- Skip hidden properties (using an array)

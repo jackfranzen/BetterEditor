@@ -83,7 +83,7 @@ namespace BetterEditor
     // -- Draw a complete collection's UI, with or without the header. 
     public interface IDrawUI
     {
-        void Draw(GUIContent content = null); // null generally uses the default, while GUIContent.None is empty. 
+        void Draw(); 
         void DrawNoHeader();
     }
 
@@ -111,7 +111,7 @@ namespace BetterEditor
 
         // -- IENUMERABLE<ITRACK>: WasUpdated
         //         - Returns true if any of the trackers were updated, but continues to iterate if logging is enabled. 
-        public static bool WasAnyUpdated(this IEnumerable<ITrack> trackersToCheck, ETrackLog log = ETrackLog.None)
+        public static bool WasUpdated(this IEnumerable<ITrack> trackersToCheck, ETrackLog log = ETrackLog.None)
         {
             if (!trackersToCheck.Any())
                 throw new Exception($"WasUpdated() called on an empty set!");

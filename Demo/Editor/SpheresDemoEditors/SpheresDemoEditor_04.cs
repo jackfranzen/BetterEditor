@@ -17,12 +17,10 @@ namespace BetterEditorDemos
         
         // -- Serialized Properties (Ones we don't track explicitly)
         private SerializedProperty previewColorProp;
-        private SerializedProperty sphereColorProp;
+        private SerializedProperty objectColorProp;
         private SerializedProperty hasModificationsProp;
-        private SerializedProperty createdObjectsProp;
         
         // -- BetterEditor: SerializedTrackers for all properties
-        //          (optionally, with property names predefined)
         private Tracker enablePreviewTracker = new( nameof(DEMO.enablePreview) );
         private Tracker previewColorUseTracker = new( nameof(COLORDATA.use) ); // -- relative to previewColorProp
         private Tracker previewColorColorTracker = new( nameof(COLORDATA.color) ); // -- relative to previewColorProp
@@ -31,8 +29,10 @@ namespace BetterEditorDemos
         private Tracker radiusTracker = new( nameof(DEMO.radius) );
         
         private Tracker numSpheresTracker = new( nameof(DEMO.totalToGenerate) );
-        private Tracker sphereColorUseTracker = new( nameof(COLORDATA.use) ); // -- relative to sphereColorProp
-        private Tracker sphereColorColorTracker = new( nameof(COLORDATA.color) ); // -- relative to sphereColorProp
+        private Tracker objectColorUseTracker = new( nameof(COLORDATA.use) ); // -- relative to sphereColorProp
+        private Tracker objectColorColorTracker = new( nameof(COLORDATA.color) ); // -- relative to sphereColorProp
+
+        private ListTracker createdObjectsTracker = new(nameof(DEMO.createdObjects));
         
         // -- Collection of all Trackers, gather automatically below
         private TrackerGroup allTrackers = new();
@@ -48,14 +48,12 @@ namespace BetterEditorDemos
             
             // -- Setup Tracker Groups
             previewTrackers = new Tracker[] {enablePreviewTracker, previewColorUseTracker, previewColorColorTracker};
-            importantTrackers = new Tracker[] {seedTracker, radiusTracker, numSpheresTracker, sphereColorUseTracker, sphereColorColorTracker};
+            importantTrackers = new Tracker[] {seedTracker, radiusTracker, numSpheresTracker, objectColorUseTracker, objectColorColorTracker};
 
             // -- Get Serialized Properties
             previewColorProp = serializedObject.FindPropertyChecked(nameof(DEMO.previewColor));
-            sphereColorProp = serializedObject.FindPropertyChecked(nameof(DEMO.objectColor));
+            objectColorProp = serializedObject.FindPropertyChecked(nameof(DEMO.objectColor));
             hasModificationsProp = serializedObject.FindPropertyChecked("hasModifications");
-            
-            createdObjectsProp = serializedObject.FindPropertyChecked(nameof(DEMO.createdObjects));
 
             // -- Track!
             RefreshTracking();
@@ -65,6 +63,8 @@ namespace BetterEditorDemos
         {
             // -- Preview Props
             enablePreviewTracker.Track(serializedObject.AsSource());
+            
+            // -- Preview Color
             previewColorUseTracker.Track(previewColorProp.AsSource());
             previewColorColorTracker.Track(previewColorProp.AsSource());
             
@@ -72,8 +72,13 @@ namespace BetterEditorDemos
             seedTracker.Track(serializedObject.AsSource());
             numSpheresTracker.Track(serializedObject.AsSource());
             radiusTracker.Track(serializedObject.AsSource());
-            sphereColorUseTracker.Track(sphereColorProp.AsSource()); 
-            sphereColorColorTracker.Track(sphereColorProp.AsSource());
+            
+            // -- Object Color
+            objectColorUseTracker.Track(objectColorProp.AsSource()); 
+            objectColorColorTracker.Track(objectColorProp.AsSource());
+            
+            // -- Example: createdObjectsTracker
+            createdObjectsTracker.Track(serializedObject.AsSource());
         }
 
         // -- Unity->OnInspectorGUI
@@ -111,20 +116,21 @@ namespace BetterEditorDemos
             
             // -- draw our list of created objects
             using( new EditorGUI.DisabledScope(true))
-                EditorGUILayout.PropertyField(createdObjectsProp);
+                EditorGUILayout.PropertyField(createdObjectsTracker.prop);
             
             // -- Clamp the number of spheres using BetterEditor's Enforce methods
             numSpheresTracker.prop.EnforceClamp(4, 100);
             seedTracker.prop.EnforceMinimum(0);
             
-            
             // -- importantTrackers Modified?
             //       - Using IEnumerable<ITrack>.WasAnyUpdated(), use any structure you'd like!
-            var modified_Important = importantTrackers.WasAnyUpdated( ETrackLog.LogIfUpdated);
-            
+            var modified_Important = importantTrackers.WasUpdated();
+             
             // -- Check (and Log) if anything was updated using our group
             var anythingUpdated = allTrackers.WasUpdated( ETrackLog.LogIfUpdated);
-            
+
+            // -- Example: Tracking changes to a list, but not used
+            var modifiedCreatedObjectsExample = createdObjectsTracker.WasUpdated();
             
             // -- Handle Enable-Preview Updated
             if (enablePreviewTracker.WasUpdated())
@@ -144,8 +150,6 @@ namespace BetterEditorDemos
         
         private void HandlePreviewUpdated()
         {
-            Debug.Log($"Better Editor Demo: EnablePreview updated to {enablePreviewTracker.prop.AnyTrue()} ");
-            
             // -- Expand or close the preview Color struct automatically when updating previewEnabled
             previewColorProp.isExpanded = enablePreviewTracker.prop.AnyTrue();
             
@@ -156,8 +160,6 @@ namespace BetterEditorDemos
         
         private void HandleDetectModifications()
         {
-            Debug.Log($"Better Editor Demo: Detected Modifications!");
-            
             //  In This Demo: hasModification updates are not part of the undo chain, undo will not revert them to false.
             //      To accomplish this we apply any GUI updates first, regularly, then we push another silent update
             serializedObject.ApplyModifiedProperties();

@@ -34,6 +34,7 @@ namespace BetterEditor
         // -- Tracking Props
         public SerializedProperty prop { get; protected set; }
         public bool isTracking { get; protected set; } = false;
+        public bool IsTracking => isTracking;
         
         
         
@@ -58,7 +59,6 @@ namespace BetterEditor
                 throw new Exception($"{GetType()}.SetAsRelativeTracker() called without expectedType! (You can also set this in the constructor!)");
         }
         
-        public bool IsTracking => isTracking;
         public void CheckTracking()
         {
             if (IsTracking == false)
@@ -81,7 +81,7 @@ namespace BetterEditor
                 throw new Exception($"{GetType()}.WasUpdated() called on empty collection! {GetLogStuff()}");
             
             // -- Use the generic WasAnyUpdated() method. 
-            return this.WasAnyUpdated(log);
+            return TrackingExtensions.WasUpdated(this, log);
         }
 
         // -- Propagate "Refresh" to all subTrackers

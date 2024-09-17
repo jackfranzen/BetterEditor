@@ -12,14 +12,16 @@ namespace BetterEditorDemos
     
     [CanEditMultipleObjects]
     [CustomEditor(typeof(SpheresDemo_06))]
+    
     public class SpheresDemoEditor_06 : Editor
     {
         
-        private SerializedProperty hasModificationsProp;
+        // -- Target
+        private static readonly SpheresDemo_06 TARGET;
         
-        // -- Using Editor from demo-stage-5. 
-        private SpheresDemo_TrackAndDraw_05 componentEditor = new();
-
+        // -- An extra content for the color override
+        private static GUIContent objectColorContent = new GUIContent("Override Color", "Override the first material's color with a custom color");
+        
         // -- [New Feature] Track enabled renderers from created objects
         //      - (Note: 'm_Enabled' is the internal Unity property for enabling a component, such as Renderers in this demo)
         private SerializedObject objectRenderersObject;
@@ -29,10 +31,27 @@ namespace BetterEditorDemos
         // -- The Better Editor
         public BetterEditor<SpheresDemo_06> betterEditor;
         
+        // -- Trackers and Sub-Editors
+        public Tracker enablePreviewTracker = new(nameof(TARGET.enablePreview));
+        private Color_TrackAndDraw_05 previewColor = new( nameof(TARGET.previewColor) ); // (defined above)
+        private Tracker seedTracker = new( nameof(TARGET.seed) );
+        private Tracker radiusTracker = new( nameof(TARGET.radius) );
+        private Tracker totalToGenerateTracker = new( nameof(TARGET.totalToGenerate) );
+        private ListTracker objectPrefabsTracker = new( nameof(TARGET.objectPrefabs) );
+        private Color_TrackAndDraw_05 objectColorTracker = new( nameof(TARGET.objectColor), objectColorContent); // (defined above)
+        
+        // -- Extra Props
+        private SerializedProperty hasModificationsProp;
+        private SerializedProperty createdObjectsProp;
+        
+        // -- Tracker Collections (So we can check which category was updated)
+        public TrackerGroup allComponentTrackers = new (typeof(SpheresDemo_06) );
+        public TrackerGroup previewTrackers = new();
+        public TrackerGroup importantTrackers = new();
+        
         // -- [Unity] OnEnable
         public void OnEnable()
         {
-            
             // -- Start BetterEditor
             betterEditor = new BetterEditor<SpheresDemo_06>()
             {
@@ -46,16 +65,23 @@ namespace BetterEditorDemos
                 refreshOnUndoRedo = true,
             };
             betterEditor.Enable();
+
+            // -- Setup Different collections to track changes to different sets of data
+            allComponentTrackers.PopulateWithReflection(this);
+            previewTrackers = new TrackerGroup { enablePreviewTracker, previewColor };
+            importantTrackers = new TrackerGroup { seedTracker, radiusTracker, totalToGenerateTracker, objectPrefabsTracker, objectColorTracker };
             
             // -- Make sure BetterEditor is aware of all our trackers
-            betterEditor.GroupFull.UnionWith(componentEditor.group);
+            betterEditor.GroupFull.UnionWith(allComponentTrackers);
             betterEditor.GroupFull.Add(showObjectRenderersTracker);
             
-            // -- Get Serialized Properties
+            // -- Other Serialized
             hasModificationsProp = serializedObject.FindPropertyChecked("hasModifications");
+            createdObjectsProp = serializedObject.FindPropertyChecked(nameof(TARGET.createdObjects));
+
             
-            // -- Start the component editor, like before
-            componentEditor.Track(serializedObject.AsSource());
+            // -- Start our component trackers, like before
+            allComponentTrackers.Track(serializedObject.AsSource());
         }
 
         // -- [Unity] OnDisable
@@ -75,20 +101,43 @@ namespace BetterEditorDemos
             serializedObject.Update();
             objectRenderersObject?.Update();
             
+            // -- Information about this demo, and controls to swap
+            var updatedStage = SpheresDemoEditors.DrawInfoAndSwitcher(Info);
+            if(updatedStage) return;
+            
+            // -- Draw the modifications Row
+            var pressedApply = SpheresDemoEditors.DrawModifyWarningRowSerialized(hasModificationsProp);
+            
+            
+            // -- Throw error if group has not been given a started Tracking yet
+            allComponentTrackers.CheckTracking();
+            
             // -- Draw the UI
-            DrawUI();
+            DrawMainUI();
+            
+            // -- Respond to Apply button
+            if (pressedApply)
+            {
+                // -- Do the actual logic to apply the changes
+                //       - In this demo, we're setting hasModifiedProperties to false directly in the objects code, it's easier
+                //          and we're done teaching how serialized properties work.
+                SpheresDemoEditors.Distribute(targets, true);
+                
+                // -- Regather targets immediately, to prevent error spam from the objectRenderersObject based on previous (but now-deleted) objects
+                betterEditor.SetNeedsNewTargets();
+            }
            
             // -- Check for Updates after drawing the UI. 
             betterEditor.CheckForUpdates();
         }
 
-        // -- [BetterEditor] OnTargetsUpdated: Called often.
+        // -- [BetterEditor] OnTargetsUpdated -> HandleTargetsUpdated
         //          - BEFORE THIS IS CALLED, BetterEditor.Targets is updated 
         //          - AFTER THIS IS CALLED, BetterEditor.GroupFull.RefreshTrackers() is performed
         //          - [Cause 1] There was an update to any property tracked in betterEditor.GroupFull
         //          - [Cause 2] .refreshOnHierarchyUpdate was set to true and the hierarchy changed
         //          - [Cause 3] .refreshOnUndoRedo was set to true and an Undo/Redo operation occurred
-        //          - [Cause 4] A Script HotReload was detected and all data needs to be regathered
+        //          - [Cause 4] A Script HotReload has destroyed all lists and data needs to be regathered
         //          - [Cause 5] .SetNeedsNewTargets() was called manually
         private void HandleTargetsUpdated()
         {
@@ -118,7 +167,7 @@ namespace BetterEditorDemos
             }
         }
         
-        // -- [BetterEditor] HandlePropertiesUpdated
+        // -- [BetterEditor] OnPropertiesUpdated -> HandlePropertiesUpdated
         //      - Called when any tracker registered to the BetterEditor is updated
         //      - EUpdateSource allows different responses to Undo/Redo Operations
         private void HandlePropertiesUpdated(EUpdateSource source)
@@ -129,7 +178,7 @@ namespace BetterEditorDemos
             //              - (Note: This is only possible if we track Undo via Unity's delegates, which BetterEditor handles and converts into an UpdateSource.)
             if(source != EUpdateSource.UndoRedo)
             {
-                if (componentEditor.importantTrackers.WasAnyUpdated())
+                if (importantTrackers.WasUpdated())
                     hasModificationsProp.boolValue = true;
             }
             
@@ -139,17 +188,32 @@ namespace BetterEditorDemos
         }
         
         // -- Draw the UI, using the UI from componentEditor defined in step 5 and adding to it. 
-        private void DrawUI()
+        protected void DrawMainUI()
         {
-            // -- Information about this demo, and controls to swap
-            var updatedStage = SpheresDemoEditors.DrawInfoAndSwitcher(Info);
-            if(updatedStage) return;
+            // -- Draw Preview Props
+            EditorGUILayout.PropertyField(enablePreviewTracker.prop, enablePreviewTracker.content);
+            if(enablePreviewTracker.prop.AnyTrue())
+                using(new EditorGUI.IndentLevelScope())
+                    previewColor.DrawSingleRow();
+                
+            // -- Draw Zone Props
+            using(new IndentEditorLabelFieldScope("Primary Props"))
+            {
+                EditorGUILayout.PropertyField(seedTracker.prop);
+                EditorGUILayout.PropertyField(totalToGenerateTracker.prop);
+                EditorGUILayout.PropertyField(radiusTracker.prop);
+            }
+
+            // -- Draw Objects Props
+            using(new IndentEditorLabelFieldScope("Objects to Distribute"))
+            {
+                objectColorTracker.Draw();
+                BetterEditorGUI.ListPropertyField(objectPrefabsTracker.prop, objectPrefabsTracker.content, FontStyle.Normal, true);
+            }
             
-            // -- Draw the modifications Row
-            var pressedApply = SpheresDemoEditors.DrawModifyWarningRowSerialized(hasModificationsProp);
-            
-            // -- Draw the Editor
-            componentEditor.DrawNoHeader();
+            // -- Draw list of all created objects
+            using( new EditorGUI.DisabledScope(true))
+                EditorGUILayout.PropertyField(createdObjectsProp);
             
             // -- Draw the new feature: "showObjectRenderersTracker"
             if (showObjectRenderersTracker.tracking)
@@ -158,18 +222,6 @@ namespace BetterEditorDemos
             else using (new EditorGUI.DisabledScope(true)) 
                 EditorGUILayout.Toggle(showObjectRenderersContent, false);
             
-            // -- Respond to Apply button
-            if (pressedApply)
-            {
-                // -- Do the actual logic to apply the changes
-                //       - In this demo, we're setting hasModifiedProperties to false directly in the objects code, it's easier
-                //          and we're done teaching how serialized properties work.
-                SpheresDemoEditors.Distribute(targets, true);
-                
-                // -- Regather targets immediately, to prevent error spam from the objectRenderersObject based on previous (but now-deleted) objects
-                //   
-                betterEditor.SetNeedsNewTargets();
-            }
         }
         
         
