@@ -1,4 +1,4 @@
-# BetterEditor
+# BetterEditor for Unity
 - Having trouble tracking changes to serialized Properties across multiple components?
 - Can't track changes effectively across undo, revert, paste, and reset?
 - Tired of Script Hot-reloads erasing your Lists?
