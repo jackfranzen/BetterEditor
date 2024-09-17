@@ -1,3 +1,11 @@
+Having trouble tracking changes to serialized Properties across multiple components?
+Can't track changes effectively across undo, revert, paste, and reset?
+Tired of Script Hot-reloads erasing your Lists?
+Do you just want to learn to make a custom Editor?
+
+This video and library will help with all of that! 
+https://www.youtube.com/watch?v=b-ir8KaJxik
+
 # What is BetterEditor?
 
 ### Demos for Editor Development
