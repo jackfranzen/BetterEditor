@@ -35,9 +35,18 @@ namespace BetterEditor
         public void Track(TrackSource source)
         {
             // -- The end point for all tracking operations, we find our property from source 
-            TrackDirect( source.FindProperty(propName) );
+            var foundProp = source.FindProperty(propName);
+            if (foundProp == null)
+                throw new Exception($"{GetType()}->Track() given invalid property");
+            if (ValidFor(foundProp) == false)
+                throw new Exception(InvalidMessage());
             
+            // -- Tracking Success
+            prop = foundProp;
             tracking = true;
+            content ??= prop.GetGUIContent();
+            RefreshTracking();
+            
         }
         
         public bool WasUpdated(ETrackLog log = ETrackLog.None)
@@ -48,18 +57,6 @@ namespace BetterEditor
         }
         
         public abstract void RefreshTracking();
-        
-        // -- Internal Tracking
-        public void TrackDirect(SerializedProperty sProp)
-        {
-            prop = sProp;
-            if (prop == null)
-                throw new Exception($"{GetType()}->Track() given invalid property");
-            if (ValidFor(prop) == false)
-                throw new Exception(InvalidMessage());
-            content ??= prop.GetGUIContent();
-            RefreshTracking();
-        }
         
         public void StopTracking()
         {
@@ -114,9 +111,9 @@ namespace BetterEditor
                 return wasUpdated;
             
             if (wasUpdated)
-                Debug.Log($"tracker {prop.displayName} was updated: {previousValue} -> {prop.BetterObjectValue()}");
+                Debug.Log($"tracker '{prop.displayName}' was updated: {previousValue} -> {prop.BetterObjectValue()}");
             else if (log == ETrackLog.Log)
-                Debug.Log($"tracker {prop.displayName} was not updated");
+                Debug.Log($"tracker '{prop.displayName}' was not updated");
             return wasUpdated;
         }
         public override void RefreshTracking()
