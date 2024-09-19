@@ -112,6 +112,65 @@ if any member of the group was updated. Groups can be populated via reflection e
 
 TrackerGroup can be made relative using `SetAsRelativeTracker(string PropName)` such that its children Trackers are populated relative to a given property. This is shown in the 5th step of the demo, and used to make a "mini-Editor" for a commonly reused sub-class  
 
+# Full Example
+
+```csharp
+private static readonly DistributeDemoComponent06 TARGET;
+
+public Tracker enablePreviewTracker = new(nameof(TARGET.enablePreview));
+private Tracker seedTracker = new( nameof(TARGET.seed) );
+private Tracker radiusTracker = new( nameof(TARGET.radius) );
+private Tracker totalToGenerateTracker = new( nameof(TARGET.totalToGenerate) );
+private ListTracker objectPrefabsTracker = new( nameof(TARGET.objectPrefabs) );
+
+// -- Tracker Collections (So we can check which category was updated)
+public TrackerGroup allComponentTrackers = new (typeof(DistributeDemoComponent06) );
+public TrackerGroup previewTrackers = new();
+public TrackerGroup importantTrackers = new();
+
+public void OnEnable()
+{
+    // -- Setup Different collections to track changes to different sets of data
+    allComponentTrackers.PopulateWithReflection(this);
+    previewTrackers = new TrackerGroup { enablePreviewTracker };
+    importantTrackers = new TrackerGroup { seedTracker, radiusTracker, totalToGenerateTracker, objectPrefabsTracker };
+    
+    // -- Other Serialized
+    hasModificationsProp = serializedObject.FindPropertyChecked("hasModifications");
+    createdObjectsProp = serializedObject.FindPropertyChecked(nameof(TARGET.createdObjects));
+    
+    // -- Start our component trackers, like before
+    allComponentTrackers.Track(serializedObject.AsSource());
+}
+
+public void OnInspectorGUI()
+{
+    serializedObject.Update();
+    
+    // -- Throw error if group has not been given a started Tracking yet
+    allComponentTrackers.CheckTracking();
+    
+    // -- Draw the UI
+    DrawMainUI();
+
+    // -- Log all Updates:
+    allComponentTrackers.WasUpdated( ETrackLog:LogIfUpdated );
+
+    // -- Check for important updates 
+    var imporantUpdateDetected = importantTrackers.WasUpdated();
+    if (updatedDetected)
+    {
+        Debug.Log("Updates Detected!");
+        allComponentTrackers.RefreshTracking();
+    }
+
+    serializedObject.ApplyModifiedProperties();
+}
+
+
+```
+
+
 # Check out the full list of BetterEditor Features
 
 ## Feature-Complete Demo demonstrating Custom Inspector
